@@ -1,1 +1,5 @@
-/Manifest.toml
+data/
+src/test.jl
+f2py/
+typing/
+Manifest.toml

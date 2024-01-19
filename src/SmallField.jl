@@ -106,7 +106,7 @@ function save_ode()
     _get_dV(x) = get_dV(x, model)
     p = (_get_V, _get_dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a = ODEs.solve_ode(u₀, tspan, p)
+    τ, ϕ, dϕ, a, ap, app, app_a = @time ODEs.solve_ode(u₀, tspan, p)
 
     err = ODEs.get_err(app, a[1:end-2], ϕ[1:end-2], dϕ[1:end-2], _get_V)
     τₑ, aₑ = get_end(ϕ, a, τ, model)
@@ -115,7 +115,7 @@ function save_ode()
         mkdir("data") 
     end
     npzwrite("data/ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ))
-    return true
+    #  return true
 end
 
 """
@@ -130,13 +130,11 @@ function save_f()
     k = Commons.logspace(-1, 1, 100)
     mᵪ = [0.2, 0.5, 1.0, 2.0] .* mᵩ
     ξ = [1.0 / 6.0, 0.0]
+    #  mᵪ = [0.2] .* mᵩ
+    #  ξ = [1.0 / 6.0]
+
     ξ_dir = ["data/f_ξ=1_6/", "data/f_ξ=0/" ]
 
-    # initiate array filled with NaN
-    # not necessary!
-    #  f = fill(NaN, size(k))
-    #  err = fill(NaN, size(k))
-    
     # interate over the model parameters
     for (i, ξᵢ) in enumerate(ξ)
         for mᵪ_i in mᵪ
@@ -144,10 +142,11 @@ function save_f()
             
             # Folds.collect is the multi-threaded version of collect
             res = @time Folds.collect(PPs.solve_diff(x, mᵩ, mᵪ_i, ξᵢ) for x in k)
+            # maybe some optimization is possible here...
             f = [x[1] for x in res]
             err = [x[2] for x in res]
-            @show f
-            
+            #  @infiltrate
+
             if !isdir(ξ_dir[i])
                 mkdir(ξ_dir[i]) 
             end
@@ -171,7 +170,7 @@ function test_save_f()
     res = @time Folds.collect(PPs.solve_diff(x, mᵩ, mᵪ, ξ) for x in k)
     f = [x[1] for x in res]
     err = [x[2] for x in res]
-    @show f err
+    #  @show f err
 
     if !isdir(ξ_dir)
         mkdir(ξ_dir) 

@@ -66,14 +66,34 @@ function solve_diff(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     sol = solve(prob, DP8(), dtmax=1e2)
     #  sol = solve(prob, Rodas5P(autodiff=false), dtmax=1e2)
-
+    
+    #=
+    # not efficient memoery usage; may cause problem
+    # (locate memories for too many useless arrays)
     #  τ = sol.t
     α = [x[1] for x in sol.u]
     β = [x[2] for x in sol.u]
 
     err = [abs(x)^2 for x in α] .- [abs(x)^2 for x in β] .- 1
     err = [abs(x) for x in err]
-    return abs(β[end])^2, maximum(err)
+
+    f = abs(β[end])^2
+    max_err = maximum(err) 
+
+    # "free" the memory
+    # usually not necessary; but seems to be for the AMD system
+    # slows down the function
+    sol = nothing
+    α = nothing
+    β = nothing
+    err = nothing
+    GC.gc(true)
+    =#
+    
+    f = abs(sol.u[end][2])^2
+    max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
+
+    return f, max_err
 end 
 
 end

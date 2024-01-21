@@ -1,6 +1,7 @@
 module PPs
 
-using Infiltrator, Printf, StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations
+using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations
+#  using Infiltritor
 
 using ..Commons
 
@@ -8,6 +9,7 @@ using ..Commons
 get ω functions ready from ODE solution
 """
 function init_func(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
+    # TODO: need to allow model specific ω's
     τ, ϕ, dϕ, a, app_a, err, aₑ = read_ode()
     #  @infiltrate
 
@@ -24,7 +26,7 @@ function init_func(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
     # try linear interpolation first
     get_ω = interpolate((τ[1:end-2],), ω, Gridded(Linear()))
     # a simple consistency check
-    #  @printf "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
+    #  @show "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
 
     #  dω = diff(τ[1:end-2], ω)
     dω = diff(ω) ./ diff(τ[1:end-2]) 

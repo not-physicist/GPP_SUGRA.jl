@@ -7,7 +7,8 @@ Model for small field inflation potential
 """
 module SmallFields
 
-using Interpolations, Printf, Folds, StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Infiltrator
+using Interpolations, Folds, StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration
+#  using Infiltrator
 
 import ..ODEs
 import ..Commons

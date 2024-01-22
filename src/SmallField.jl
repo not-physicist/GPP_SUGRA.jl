@@ -177,7 +177,14 @@ function test_save_f()
         mkdir(ξ_dir) 
     end
     npzwrite("$(ξ_dir)mᵪ=$(mᵪ/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
-    return true
+
+    # approximate the true values
+    if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-3)
+        f = 
+        return true
+    else
+        return false
+    end
 end
 
 end

@@ -10,9 +10,9 @@ module SmallFields
 using Interpolations, Folds, StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration
 #  using Infiltrator
 
-import ..ODEs
-import ..Commons
-import ..PPs
+using ..ODEs
+using ..Commons
+using ..PPs
 
 
 function get_M(v::Real, n::Int, Nₑ::Real)
@@ -32,11 +32,17 @@ end
 
 
 function get_ϕₑ(v::Real, n::Int)
-    v * (v/(√2 * n))^(1 / (n-1))
+    return v * (v/(√2 * n))^(1 / (n-1))
+end
+
+
+function get_m2_eff(ode::ODEData, mᵪ::Real, ξ::Real)
+    mₑ² = ode.a[1:end-2].^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* ode.app_a
+    return mₑ²
 end
 
 """
-model parameters, in reduced Planck units
+inflation potential model parameters, in reduced Planck units
 """
 struct SmallField{T<:Real, N<:Int}
     v::T
@@ -53,6 +59,7 @@ SmallField(v, n, Nₑ) = SmallField(v, n, Nₑ, get_M(v, n, Nₑ), get_mᵩ(v, n
 get the inflation potential
 """
 function get_V(x::Float64, model::SmallField)
+    # property destructuring; requires at least julia 1.7
     (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
     return M^4 * (1 - (x/v)^n)^2
 end
@@ -65,9 +72,11 @@ function get_dV(x::Float64, model::SmallField)
     return M^4 / v * 2.0 * n * (x/v)^(n-1) * (-1.0 + (x/v)^n)
 end
 
-
+"""
+"inflationary" scale; may well be model depedent
+"""
 function get_Hinf(model::SmallField)
-    √(get_V(0.0, model) / 3.0)
+    return √(get_V(0.0, model) / 3.0)
 end
 
 """
@@ -126,6 +135,7 @@ use multi-threading, remember use e.g. julia -n auto
 function save_f()
     println("Computing spectra using ", Threads.nthreads(), " cores")
     model = SmallField(0.5, 6, 60.0)
+    ode = read_ode()
     (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
 
     k = Commons.logspace(-1, 1, 100)
@@ -133,16 +143,16 @@ function save_f()
     ξ = [1.0 / 6.0, 0.0]
     #  mᵪ = [0.2] .* mᵩ
     #  ξ = [1.0 / 6.0]
-
     ξ_dir = ["data/f_ξ=1_6/", "data/f_ξ=0/" ]
 
     # interate over the model parameters
     for (i, ξᵢ) in enumerate(ξ)
         for mᵪ_i in mᵪ
             #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
+            m2_eff = get_m2_eff(ode, mᵪ_i, ξᵢ)
             
             # Folds.collect is the multi-threaded version of collect
-            res = @time Folds.collect(PPs.solve_diff(x, mᵩ, mᵪ_i, ξᵢ) for x in k)
+            res = @time Folds.collect(PPs.solve_diff(x, mᵩ, ode, m2_eff) for x in k)
             # maybe some optimization is possible here...
             f = [x[1] for x in res]
             err = [x[2] for x in res]
@@ -162,13 +172,16 @@ save the spectra for one set of parameters; just for testing
 function test_save_f()
     model = SmallField(0.5, 6, 60.0)
     (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
+    ode = read_ode()
 
     k = Commons.logspace(-1, 1, 5)
     mᵪ = 1.0 .* mᵩ
     ξ = 1.0 / 6.0
     ξ_dir = "data/f_ξ=1_6/"
+    
+    m2_eff = get_m2_eff(ode, mᵪ, ξ)
 
-    res = @time Folds.collect(PPs.solve_diff(x, mᵩ, mᵪ, ξ) for x in k)
+    res = @time Folds.collect(PPs.solve_diff(x, mᵩ, ode, m2_eff) for x in k)
     f = [x[1] for x in res]
     err = [x[2] for x in res]
     #  @show f err
@@ -177,7 +190,14 @@ function test_save_f()
         mkdir(ξ_dir) 
     end
     npzwrite("$(ξ_dir)mᵪ=$(mᵪ/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
-    return true
+
+    # approximate the true values
+    if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-3)
+        f = 
+        return true
+    else
+        return false
+    end
 end
 
 end

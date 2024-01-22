@@ -7,11 +7,14 @@ using ..Commons
 
 """
 get ω functions ready from ODE solution
+mᵩ: mass of inflaton 
+mᵪ: mass of the produced particle
 """
-function init_func(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
-    # TODO: need to allow model specific ω's
-    τ, ϕ, dϕ, a, app_a, err, aₑ = read_ode()
-    #  @infiltrate
+function init_func(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
+    #  τ, ϕ, dϕ, a, app_a, err, aₑ = read_ode()
+    #  odedata = read_ode()
+    τ = ode.τ
+    aₑ = ode.aₑ
 
     # NOTE: don't take the last element as upper bound of the integration;
     # since the derivatives "sacrifies" some elements
@@ -20,7 +23,8 @@ function init_func(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
     k *= aₑ * mᵩ
     
     # get sampled ω values and interpolate
-    mₑ² = a[1:end-2].^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* app_a
+    #  mₑ² = a[1:end-2].^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* app_a
+    mₑ² = m2_eff
     ω² = k^2 .+ mₑ²
     ω = (ω²).^(1/2)
     # try linear interpolation first
@@ -59,8 +63,8 @@ end
 """
 Solve the differential equations for GPP
 """
-function solve_diff(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
-    ω, dω, Ω, t_span = init_func(k, mᵩ, mᵪ, ξ)
+function solve_diff(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
+    ω, dω, Ω, t_span = init_func(k, mᵩ, ode, m2_eff)
     p = SA[ω, dω, Ω]
 
     u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
@@ -68,7 +72,11 @@ function solve_diff(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     sol = solve(prob, DP8(), dtmax=1e2)
     #  sol = solve(prob, Rodas5P(autodiff=false), dtmax=1e2)
-    
+        
+    f = abs(sol.u[end][2])^2
+    max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
+
+    return f, max_err
     #=
     # not efficient memoery usage; may cause problem
     # (locate memories for too many useless arrays)
@@ -91,11 +99,6 @@ function solve_diff(k::Real, mᵩ::Real, mᵪ::Real, ξ::Real)
     err = nothing
     GC.gc(true)
     =#
-    
-    f = abs(sol.u[end][2])^2
-    max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
-
-    return f, max_err
 end 
 
 end

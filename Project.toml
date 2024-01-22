@@ -12,6 +12,7 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+NumericalIntegration = "0.3"
 Interpolations = "0.15"
 StaticArrays = "1"
 Folds = "0.2"

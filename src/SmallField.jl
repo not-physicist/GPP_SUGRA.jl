@@ -1,7 +1,3 @@
-include("common.jl")
-include("ode.jl")
-include("pp.jl")
-
 """
 Model for small field inflation potential
 """

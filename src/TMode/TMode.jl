@@ -50,8 +50,10 @@ function save_ode()
 end
 
 function test()
-    model = ModelDatas.TMode(1, 0.95, 0.001)
+    model = ModelDatas.TMode(1, 0.9649, 0.001)
     @show model
+    ModelDatas.get_ϕ_end(model)
     return true
 end
+
 end

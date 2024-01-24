@@ -7,4 +7,6 @@ using Test
     @test GPP_SUGRA.SmallFields.test_save_f()
     # clean up
     rm("data/", recursive=true)
+
+    @test GPP_SUGRA.TModes.ModelDatas.test_ϕ_end()
 end

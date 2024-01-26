@@ -24,10 +24,12 @@ end
 
 """
 use the second Friedmann equation to get the error of the solution
+assume the sizes of the vectors: n-2, n, n, n
 """
 function get_err(app::Vector, a::Vector, ϕ::Vector, dϕ::Vector, get_V::Function)
-    V = [get_V(x) for x in ϕ]
-    abs.(app./a - (4*a.^2 .* V - dϕ.^2)/6)
+    V = get_V.(ϕ)
+    #  @show size(app) size(a) size(ϕ) size(dϕ) size(V)
+    abs.(app./a[1:end-2] - (4*a[1:end-2].^2 .* V[1:end-2] - dϕ[1:end-2].^2)/6)
 end
 
 """
@@ -52,8 +54,9 @@ function solve_ode(u₀::SVector{3, Float64},
     #  app = Commons.diff(τ[1:end-1], ap)
     app = diff(ap) ./ diff(τ[1:end-1]) 
     app_a = app ./ a[1:end-2]
+    err = get_err(app, a, ϕ, dϕ, p[1])
 
-    return τ, ϕ, dϕ, a, ap, app, app_a
+    return τ, ϕ, dϕ, a, ap, app, app_a, err
 end
 
 end

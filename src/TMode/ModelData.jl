@@ -7,16 +7,18 @@ using SimpleNonlinearSolve
 
 export TMode
 
-struct TMode{T<:Real, N<:Int} 
+
+struct TMode{T<:Real, N<:Int}
     n::N
     nₛ::T
-    r::T 
+    r::T
 
     # derivated quantities
     V₀::T
-    α::T 
+    α::T
     # auxiliary quantities
-    ϕ_cmb::T
+    ϕ_cmb::T  # field value correspond to cmb pivot scale
+    ϕₑ::T  # field value at the end of slow-roll inflation
 end
 TMode(n, nₛ, r) = TMode(n, nₛ, r, get_derived(n, nₛ, r)...)
 
@@ -74,21 +76,34 @@ function get_derived(n::Int, nₛ::Real, r::Real)
     α = get_α(n, nₛ, r)
     ϕ_cmb = get_ϕ_cmb(n, nₛ, α)
     V₀ = get_V₀(n, ϕ_cmb, α)
-    return V₀, α, ϕ_cmb
+    ϕₑ = get_ϕₑ(α, n, ϕ_cmb)
+    return V₀, α, ϕ_cmb, ϕₑ
+end
+
+function get_αₗ(n::Int)
+    p = 2 * n
+    λₗ = sqrt(1 + sqrt(p^2 - 1)/p) / sqrt(2)
+    return 1 / (λₗ^2 * 6)
 end
 
 """
 get field value at the end of slow-roll inflation;
 first implement r > r_l case (λ < λ_l, and ϵ=1 first)
 """
-function get_ϕ_end(model::TMode)
-    function _f_aux(u, p)
-        λ = 1/(sqrt(6) * model.α)
-        power = 2 * model.n
-        return cosh.(λ*u).^2 .- 1/2 * (1 + sqrt(1+2*power^2*λ^2))
-    end
-    
-    u₀ = (0.0, model.ϕ_cmb)
+function get_ϕₑ(α::Real, n::Int, ϕ_cmb::Real)
+    # check α >? αₗ
+    if α > get_αₗ(n)
+        println("!!!")
+        function _f_aux(u, p)
+            λ = 1/(sqrt(6) * α)
+            power = 2 * n
+            return cosh.(λ*u).^2 .- 1/2 * (1 + sqrt(1+2*power^2*λ^2))
+        end
+    else
+        throw(ErrorException("Not implemented yet!"))
+    end 
+    # in this model, end of inflation must exists between origin and cmb field value
+    u₀ = (0.0, ϕ_cmb)
     prob = IntervalNonlinearProblem(_f_aux, u₀)
     sol = solve(prob, ITP())
     ϕ_end = only(sol)
@@ -97,8 +112,7 @@ end
 
 function test_ϕ_end()
     model = TMode(1, 0.965, 0.001)
-    ϕ_end = get_ϕ_end(model)
-    ϵV = get_ϵV(ϕ_end, model.n, model.α)
+    ϵV = get_ϵV(model.ϕₑ, model.n, model.α)
     if isapprox(ϵV, 1.0, atol=1e-3)
         return true
     else

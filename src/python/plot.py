@@ -3,6 +3,7 @@ import numpy as np
 import os
 from glob import glob
 
+
 def plot_all():
     """
     Plot all the spectra
@@ -41,10 +42,60 @@ def plot_ode():
     data = np.load("data/ode.npz")
     a = data["a"]
     phi = data["phi"]
-    plt.plot(a, phi)
+    τ = data["tau"]
+
+    plt.plot(τ, phi)
+    #  plt.plot(a, phi)
     plt.xlabel("$a$")
     plt.ylabel(r"$\phi / m_{\rm pl}$")
-    plt.show()
+    #  plt.show()
+    plt.savefig("figs/ode.pdf", bbox_inches="tight")
+
+
+def plot_background():
+    fn = "data/ode.npz"
+    data = np.load(fn)
+    tau = data['tau']
+    phi = data['phi']
+    phi_d = data['phi_d']
+    a = data['a']
+    app_a = data["app_a"]
+    a_end = data["a_end"]
+    err = data["err"]
+
+    tau_end = np.interp(a_end, a, tau)
+    phi_end = np.interp(tau_end, tau, phi)
+
+    fig, ax = plt.subplots(ncols=2, nrows=2)
+    ax[0, 0].plot(tau, phi, c="k")
+    ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
+
+    ax[0, 0].set_xlabel("$\eta$")
+    ax[0, 0].set_ylabel("$\phi$")
+
+    ax[0, 1].plot(tau, a, c="k")
+    ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
+
+    ax[0, 1].set_xlabel("$\eta$")
+    ax[0, 1].set_ylabel("$a/a_i$")
+
+    ax[1, 0].plot(tau, phi, c="k")
+    ax[1, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
+
+    ax[1, 0].set_xlabel("$\eta$")
+    ax[1, 0].set_ylabel("$\phi$")
+    ax[1, 0].set_xlim([-2e6, 8e6])
+    ax[1, 0].set_ylim([0.4, 0.6])
+
+    ax[1, 1].plot(tau, a, c="k")
+    ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
+
+    ax[1, 1].set_xlabel("$\eta$")
+    ax[1, 1].set_ylabel("$a/a_i$")
+    ax[1, 1].set_yscale("log")
+
+    plt.tight_layout()
+    plt.savefig("figs/background.pdf", bbox_inches="tight")
 
 
 def _parse_slash_float(s):
@@ -101,4 +152,5 @@ def plot_f():
     plt.savefig("data/figs/f.pdf", bbox_inches="tight")
     plt.close()
 
-plot_f()
+plot_background()
+#  plot_f()

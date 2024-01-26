@@ -10,6 +10,8 @@ using ..ODEs
 using ..Commons
 using ..PPs
 
+using StaticArrays, NPZ
+
 """
 inflationary potential parameter; in reduced Planck unit
 """
@@ -33,20 +35,36 @@ function get_dV(ϕ::Real, model::TMode)
     return sqrt(2/3) / model.α * model.V₀ * sech(x)^2 * tanh(x)^(2*model.n-1)
 end
 
+"""
+define inflationary scale like this
+"""
+function get_Hinf(model::TMode)
+    return √(model.V₀ / 3.0)
+end
 
 function save_ode()
-    # TODO: put realistic numbers
-    model = TMode(1.0, 1.0, 1)
+    model = TMode(1, 0.965, 0.001)
+    @show model
 
     # initial conditions
-    u₀ = SA[1.0, 0.0, 1.0]
-    τᵢ = - 1 / Hinf
+    u₀ = SA[2.0 * model.ϕₑ, 0.0, 1.0]
+    τᵢ = - 1 / get_Hinf(model)
     tspan = (τᵢ, -τᵢ)
 
     # parameters
     _V(x) = get_V(x, model)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
+    
+    τ, ϕ, dϕ, a, ap, app, app_a, err = @time ODEs.solve_ode(u₀, tspan, p)
+
+    τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
+
+    if !isdir("data")
+        mkdir("data") 
+    end
+    npzwrite("data/ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ))
+    return true
 end
 
 function test()

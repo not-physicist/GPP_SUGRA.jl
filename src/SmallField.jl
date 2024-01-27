@@ -112,9 +112,8 @@ function save_ode()
     _get_dV(x) = get_dV(x, model)
     p = (_get_V, _get_dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a = @time ODEs.solve_ode(u₀, tspan, p)
+    τ, ϕ, dϕ, a, ap, app, app_a, err = @time ODEs.solve_ode(u₀, tspan, p)
 
-    err = ODEs.get_err(app, a[1:end-2], ϕ[1:end-2], dϕ[1:end-2], _get_V)
     τₑ, aₑ = get_end(ϕ, a, τ, model)
     
     if !isdir("data")

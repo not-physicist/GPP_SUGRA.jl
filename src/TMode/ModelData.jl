@@ -93,7 +93,7 @@ first implement r > r_l case (λ < λ_l, and ϵ=1 first)
 function get_ϕₑ(α::Real, n::Int, ϕ_cmb::Real)
     # check α >? αₗ
     if α > get_αₗ(n)
-        println("!!!")
+        #  println("!!!")
         function _f_aux(u, p)
             λ = 1/(sqrt(6) * α)
             power = 2 * n

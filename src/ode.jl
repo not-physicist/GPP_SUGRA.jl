@@ -28,7 +28,7 @@ assume the sizes of the vectors: n-2, n, n, n
 """
 function get_err(app::Vector, a::Vector, ϕ::Vector, dϕ::Vector, get_V::Function)
     V = get_V.(ϕ)
-    #  @show size(app) size(a) size(ϕ) size(dϕ) size(V)
+    @show size(app) size(a) size(ϕ) size(dϕ) size(V)
     abs.(app./a[1:end-2] - (4*a[1:end-2].^2 .* V[1:end-2] - dϕ[1:end-2].^2)/6)
 end
 

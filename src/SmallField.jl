@@ -123,42 +123,17 @@ function save_ode()
     return true
 end
 
-"""
-save the spectra for various parameters;
-use multi-threading, remember use e.g. julia -n auto
-"""
 function save_f()
-    println("Computing spectra using ", Threads.nthreads(), " cores")
     model = SmallField(0.5, 6, 60.0)
+    mᵩ = model.mᵩ
     ode = read_ode()
-    (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
 
     k = Commons.logspace(-1, 1, 100)
     mᵪ = [0.2, 0.5, 1.0, 2.0] .* mᵩ
     ξ = [1.0 / 6.0, 0.0]
-    #  mᵪ = [0.2] .* mᵩ
-    #  ξ = [1.0 / 6.0]
-    ξ_dir = ["data/f_ξ=1_6/", "data/f_ξ=0/" ]
+    ξ_dir = ["data/f_ξ=1_6/", "data/f_ξ=0/"]
 
-    # interate over the model parameters
-    for (i, ξᵢ) in enumerate(ξ)
-        for mᵪ_i in mᵪ
-            #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
-            m2_eff = get_m2_eff(ode, mᵪ_i, ξᵢ)
-            
-            # Folds.collect is the multi-threaded version of collect
-            res = @time Folds.collect(PPs.solve_diff(x, mᵩ, ode, m2_eff) for x in k)
-            # maybe some optimization is possible here...
-            f = [x[1] for x in res]
-            err = [x[2] for x in res]
-            #  @infiltrate
-
-            if !isdir(ξ_dir[i])
-                mkdir(ξ_dir[i]) 
-            end
-            npzwrite("$(ξ_dir[i])mᵪ=$(mᵪ_i/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
-        end
-    end
+    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff)
 end
 
 """
@@ -166,26 +141,16 @@ save the spectra for one set of parameters; just for testing
 """
 function test_save_f()
     model = SmallField(0.5, 6, 60.0)
-    (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
+    mᵩ = model.mᵩ
     ode = read_ode()
 
     k = Commons.logspace(-1, 1, 5)
-    mᵪ = 1.0 .* mᵩ
-    ξ = 1.0 / 6.0
-    ξ_dir = "data/f_ξ=1_6/"
+    mᵪ = [1.0] .* mᵩ
+    ξ = [1.0 / 6.0]
+    ξ_dir = ["data/f_ξ=1_6/"]
     
-    m2_eff = get_m2_eff(ode, mᵪ, ξ)
-
-    res = @time Folds.collect(PPs.solve_diff(x, mᵩ, ode, m2_eff) for x in k)
-    f = [x[1] for x in res]
-    err = [x[2] for x in res]
-    #  @show f err
-
-    if !isdir(ξ_dir)
-        mkdir(ξ_dir) 
-    end
-    npzwrite("$(ξ_dir)mᵪ=$(mᵪ/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
-
+    f = PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff, true)
+    
     # approximate the true values
     if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-3)
         f = 

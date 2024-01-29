@@ -1,6 +1,6 @@
 module PPs
 
-using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations
+using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations, Folds
 #  using Infiltritor
 
 using ..Commons
@@ -29,7 +29,7 @@ function init_func(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
     ω = (ω²).^(1/2)
     # try linear interpolation first
     get_ω = interpolate((τ[1:end-2],), ω, Gridded(Linear()))
-    # a simple consistency check
+    #  a simple consistency check
     #  @show "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
 
     #  dω = diff(τ[1:end-2], ω)
@@ -100,5 +100,41 @@ function solve_diff(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
     GC.gc(true)
     =#
 end 
+
+"""
+save the spectra for various parameters (given as arguments);
+use multi-threading, remember use e.g. julia -n auto
+direct_out -> if return the results instead of save to npz
+"""
+function save_each(mᵩ::Real, ode::ODEData, k::Vector, mᵪ::Vector,
+                   ξ::Vector, ξ_dir::Vector, get_m2_eff::Function,
+                   direct_out::Bool=false)
+    println("Computing spectra using ", Threads.nthreads(), " cores")
+
+    # interate over the model parameters
+    for (ξᵢ, ξ_dirᵢ) in zip(ξ, ξ_dir)
+        for mᵪᵢ in mᵪ
+            #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
+            #  only want to compute this once for one set of parameters
+            m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
+            
+            # Folds.collect is the multi-threaded version of collect
+            res = @time Folds.collect(solve_diff(x, mᵩ, ode, m2_eff) for x in k)
+            # maybe some optimization is possible here...
+            f = [x[1] for x in res]
+            err = [x[2] for x in res]
+            #  @infiltrate
+            
+            if direct_out
+                return f
+            else
+                if !isdir(ξ_dirᵢ)
+                    mkdir(ξ_dirᵢ) 
+                end
+                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
+            end
+        end
+    end
+end
 
 end

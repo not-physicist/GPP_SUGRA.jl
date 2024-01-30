@@ -8,5 +8,5 @@ using Test
     # clean up
     rm("data/", recursive=true)
 
-    @test GPP_SUGRA.TModes.ModelDatas.test_ϕ_end()
+    @test GPP_SUGRA.TModes.ModelDatas.test_ϕₑ()
 end

@@ -26,6 +26,7 @@ struct ODEData{V<:Vector, F<:Real}
     dϕ::V
     a::V
     app_a::V
+    H::V
     err::V
 
     aₑ::F
@@ -35,7 +36,8 @@ end
 """
 read ODE solution stored in data/ode.npz
 """
-function read_ode(fn::String="data/ode.npz")
+function read_ode(data_dir::String)
+    fn = data_dir * "ode.npz"
     # maybe a try catch clause here; not sure if necessary
     data = npzread(fn)
     τ = data["tau"]
@@ -43,9 +45,10 @@ function read_ode(fn::String="data/ode.npz")
     dϕ = data["phi_d"]
     a = data["a"]
     app_a = data["app_a"]
+    H = data["H"]
     err = data["err"]
     aₑ = data["a_end"]
-    return ODEData(τ, ϕ, dϕ, a, app_a, err, aₑ)
+    return ODEData(τ, ϕ, dϕ, a, app_a, H, err, aₑ)
 end
 
 """

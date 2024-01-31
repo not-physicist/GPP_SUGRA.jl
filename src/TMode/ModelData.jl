@@ -15,7 +15,7 @@ struct TMode{T<:Real, N<:Int}
     # derivated quantities
     V₀::T
     α::T
-    ϕ_cmb::T  # field value correspond to cmb pivot scale
+    ϕ_cmb::T  # field value at cmb pivot scale
     ϕₑ::T  # field value at the end of slow-roll inflation
     mᵩ::T
 end
@@ -62,14 +62,14 @@ function get_α(n::Int, nₛ::Real, r::Real)
 end
 
 """
-compute all the derived quantities: V₀, α, ϕ_cmb
+compute all the derived quantities: V₀, α, ϕ_cmb and etc
 """
 function get_derived(n::Int, nₛ::Real, r::Real)
     α = get_α(n, nₛ, r)
     ϕ_cmb = get_ϕ_cmb(n, nₛ, α)
     V₀ = get_V₀(n, ϕ_cmb, α)
     ϕₑ = get_ϕₑ(α, n)
-    mᵩ = V₀ / (3α)
+    mᵩ = sqrt(V₀ / (3α))
     return V₀, α, ϕ_cmb, ϕₑ, mᵩ
 end
 
@@ -92,16 +92,16 @@ function get_ϕₑ(α::Real, n::Int)
     return ϕₑ
 end
 
+"""
+test if one of the slow roll parameters is close to unity at ϕₑ
+for a range of r; consistency check for ϕₑ
+"""
 function test_ϕₑ()
     r = logspace(-5, -1, 100)
     
     models = [TMode(1, 0.965, x) for x in r]
     ϵV = [get_ϵV(model.ϕₑ, model.n, model.α) for model in models]
     ηV = [get_ηV(model.ϕₑ, model.n, model.α) for model in models]
-
-    # check if the method is working
-    #  ϵV[1] = 0.1
-    #  ηV[1] = 0.1
     
     # difference between 1 and the SR parameter closest to 1
     diff = (1 .- ϵV) .* (1 .- abs.(ηV))

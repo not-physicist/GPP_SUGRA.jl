@@ -33,7 +33,7 @@ end
 
 
 function get_m2_eff(ode::ODEData, mᵪ::Real, ξ::Real)
-    mₑ² = ode.a[1:end-2].^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* ode.app_a
+    mₑ² = ode.a.^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* ode.app_a
     return mₑ²
 end
 
@@ -98,7 +98,7 @@ end
 """
 Calculate the background quantities and save to data/ode.npz
 """
-function save_ode()
+function save_ode(data_dir::String="data/SmallField/")
     model = SmallField(0.5, 6, 60.0)
     (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
     
@@ -112,26 +112,25 @@ function save_ode()
     _get_dV(x) = get_dV(x, model)
     p = (_get_V, _get_dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, err = @time ODEs.solve_ode(u₀, tspan, p)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p)
 
     τₑ, aₑ = get_end(ϕ, a, τ, model)
     
-    if !isdir("data")
-        mkdir("data") 
-    end
-    npzwrite("data/ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ))
+    mkpath(data_dir)
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H))
     return true
 end
 
-function save_f()
+function save_f(data_dir::String="data/SmallField/")
     model = SmallField(0.5, 6, 60.0)
     mᵩ = model.mᵩ
-    ode = read_ode()
+    ode = read_ode(data_dir)
 
-    k = Commons.logspace(-1, 1, 100)
+    k = logspace(-1, 1, 100) * ode.aₑ * model.mᵩ
     mᵪ = [0.2, 0.5, 1.0, 2.0] .* mᵩ
     ξ = [1.0 / 6.0, 0.0]
-    ξ_dir = ["data/f_ξ=1_6/", "data/f_ξ=0/"]
+    ξ_dir = ["1_6/", "0/"]
+    ξ_dir = data_dir * "f_ξ=" .* ξ_dir 
 
     PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff)
 end
@@ -142,9 +141,10 @@ save the spectra for one set of parameters; just for testing
 function test_save_f()
     model = SmallField(0.5, 6, 60.0)
     mᵩ = model.mᵩ
-    ode = read_ode()
+    ode = read_ode("data/SmallField/")
 
-    k = Commons.logspace(-1, 1, 5)
+    k = logspace(-1, 1, 5) * ode.aₑ * model.mᵩ
+    #  @show mᵩ
     mᵪ = [1.0] .* mᵩ
     ξ = [1.0 / 6.0]
     ξ_dir = ["data/f_ξ=1_6/"]
@@ -153,9 +153,9 @@ function test_save_f()
     
     # approximate the true values
     if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-3)
-        f = 
         return true
     else
+        @show f
         return false
     end
 end

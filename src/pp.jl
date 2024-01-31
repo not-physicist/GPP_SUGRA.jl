@@ -9,36 +9,40 @@ using ..Commons
 get ω functions ready from ODE solution
 mᵩ: mass of inflaton 
 mᵪ: mass of the produced particle
+
+One is responsible to make sure ode.τ and m2_eff has the same dimension. Now ode data isshould be automatically trimmed.
 """
-function init_func(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
+function init_func(k::Real, ode::ODEData, m2_eff::Vector)
     #  τ, ϕ, dϕ, a, app_a, err, aₑ = read_ode()
     #  odedata = read_ode()
     τ = ode.τ
-    aₑ = ode.aₑ
+    #  aₑ = ode.aₑ
 
     # NOTE: don't take the last element as upper bound of the integration;
     # since the derivatives "sacrifies" some elements
     # otherwise problematic with the ODE solver
-    t_span = [τ[1], τ[end-3]]
-    k *= aₑ * mᵩ
+    t_span = [τ[1], τ[end-1]]
+    #  k *= aₑ * mᵩ
+    #  @show aₑ * mᵩ
     
     # get sampled ω values and interpolate
-    #  mₑ² = a[1:end-2].^2 .* mᵪ^2 - (1.0 - 6.0 * ξ) .* app_a
     mₑ² = m2_eff
     ω² = k^2 .+ mₑ²
     ω = (ω²).^(1/2)
+    
+    #  @show size(τ), size(ω)
+
     # try linear interpolation first
-    get_ω = interpolate((τ[1:end-2],), ω, Gridded(Linear()))
+    get_ω = interpolate((τ,), ω, Gridded(Linear()))
     #  a simple consistency check
     #  @show "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
 
-    #  dω = diff(τ[1:end-2], ω)
-    dω = diff(ω) ./ diff(τ[1:end-2]) 
-    get_dω = interpolate((τ[1:end-3],), dω, Gridded(Linear()))
+    dω = diff(ω) ./ diff(τ) 
+    get_dω = interpolate((τ[1:end-1],), dω, Gridded(Linear()))
     
     # cumulative integration
-    Ω = cumul_integrate(τ[1:end-2], ω)
-    get_Ω = interpolate((τ[1:end-2],), Ω, Gridded(Linear()))
+    Ω = cumul_integrate(τ, ω)
+    get_Ω = interpolate((τ,), Ω, Gridded(Linear()))
 
     return get_ω, get_dω, get_Ω, t_span
 end
@@ -63,8 +67,8 @@ end
 """
 Solve the differential equations for GPP
 """
-function solve_diff(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
-    ω, dω, Ω, t_span = init_func(k, mᵩ, ode, m2_eff)
+function solve_diff(k::Real, ode::ODEData, m2_eff::Vector)
+    ω, dω, Ω, t_span = init_func(k, ode, m2_eff)
     p = SA[ω, dω, Ω]
 
     u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
@@ -75,30 +79,9 @@ function solve_diff(k::Real, mᵩ::Real, ode::ODEData, m2_eff::Vector)
         
     f = abs(sol.u[end][2])^2
     max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
+    #  @show f, max_err
 
     return f, max_err
-    #=
-    # not efficient memoery usage; may cause problem
-    # (locate memories for too many useless arrays)
-    #  τ = sol.t
-    α = [x[1] for x in sol.u]
-    β = [x[2] for x in sol.u]
-
-    err = [abs(x)^2 for x in α] .- [abs(x)^2 for x in β] .- 1
-    err = [abs(x) for x in err]
-
-    f = abs(β[end])^2
-    max_err = maximum(err) 
-
-    # "free" the memory
-    # usually not necessary; but seems to be for the AMD system
-    # slows down the function
-    sol = nothing
-    α = nothing
-    β = nothing
-    err = nothing
-    GC.gc(true)
-    =#
 end 
 
 """
@@ -117,9 +100,10 @@ function save_each(mᵩ::Real, ode::ODEData, k::Vector, mᵪ::Vector,
             #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
+            #  @show m2_eff[1:10000:end]
             
             # Folds.collect is the multi-threaded version of collect
-            res = @time Folds.collect(solve_diff(x, mᵩ, ode, m2_eff) for x in k)
+            res = @time Folds.collect(solve_diff(x, ode, m2_eff) for x in k)
             # maybe some optimization is possible here...
             f = [x[1] for x in res]
             err = [x[2] for x in res]
@@ -128,9 +112,7 @@ function save_each(mᵩ::Real, ode::ODEData, k::Vector, mᵪ::Vector,
             if direct_out
                 return f
             else
-                if !isdir(ξ_dirᵢ)
-                    mkdir(ξ_dirᵢ) 
-                end
+                mkpath(ξ_dirᵢ)
                 npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ).npz", Dict("k"=>k, "f"=>f, "err"=>err))
             end
         end

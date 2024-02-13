@@ -3,6 +3,7 @@ Model for T-mode α attractor inflation potential
 """
 module TModes
 
+# submodules
 include("ModelData.jl")
 using .ModelDatas
 
@@ -11,6 +12,10 @@ using ..Commons
 using ..PPs
 
 using StaticArrays, NPZ
+
+# global constant
+const MODEL_NAME="TMode"
+const MODEL_DATA_DIR="data/$MODEL_NAME/"
 
 """
 the f-function in superpotential
@@ -52,7 +57,7 @@ function get_m2_eff_R(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     return m2
 end
 
-function save_ode(data_dir::String="data/TMode/")
+function save_ode(data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
 
     model = TMode(1, 0.965, 0.001)
@@ -77,20 +82,21 @@ function save_ode(data_dir::String="data/TMode/")
     return true
 end
 
-function save_f(data_dir::String="data/TMode/")
+function save_f(data_dir::String=MODEL_DATA_DIR)
     model = TMode(1, 0.965, 0.001)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
     k = logspace(-2, 2, 100) * ode.aₑ * model.mᵩ
     mᵪ = [0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
+
     ξ = [0.0]
-    ξ_dir = ["0/"]
-    ξ_dir = data_dir * "f_ξ=" .* ξ_dir 
+    m3_2 = [0.0, 1.0]
+
     f = get_f(ode.ϕ, model, 0.0)
     m2_eff(ode, mᵪ, ξ) = get_m2_eff_R(ode, mᵪ, ξ, f)
-
-    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, m2_eff, 1.0)
+    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff, 1.0)
+    return true
 end
 
 function test_save_f(data_dir::String="data/SmallField/")

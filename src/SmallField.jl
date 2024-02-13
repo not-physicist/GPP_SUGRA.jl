@@ -10,6 +10,10 @@ using ..ODEs
 using ..Commons
 using ..PPs
 
+# global constant
+const MODEL_NAME="SmallField"
+const MODEL_DATA_DIR="data/$MODEL_NAME/"
+
 
 function get_M(v::Real, n::Int, Nₑ::Real)
     P = 2.2e-9  # observed magnitude of power spectrum
@@ -98,7 +102,7 @@ end
 """
 Calculate the background quantities and save to data/ode.npz
 """
-function save_ode(data_dir::String="data/SmallField/")
+function save_ode(data_dir::String=MODEL_DATA_DIR)
     model = SmallField(0.5, 6, 60.0)
     (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
     
@@ -121,7 +125,7 @@ function save_ode(data_dir::String="data/SmallField/")
     return true
 end
 
-function save_f(data_dir::String="data/SmallField/")
+function save_f(data_dir::String=MODEL_DATA_DIR)
     model = SmallField(0.5, 6, 60.0)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
@@ -138,7 +142,7 @@ end
 """
 save the spectra for one set of parameters; just for testing
 """
-function test_save_f(data_dir::String="data/SmallField/")
+function test_save_f(data_dir::String=MODEL_DATA_DIR)
     model = SmallField(0.5, 6, 60.0)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)

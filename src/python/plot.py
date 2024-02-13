@@ -103,9 +103,9 @@ def plot_f(dn):
     ode_fn = [x for x in result if "ode.npz" in x]
     print(f_fns, ode_fn)
 
-    f_xi_str = "f_ξ="
+    f_xi_prefix = "f_ξ="
     f_xi = None
-    m_chi_str = "mᵪ="
+    m_chi_prefix = "mᵪ="
     m_chi = None
 
     fig, ax = plt.subplots()
@@ -115,10 +115,10 @@ def plot_f(dn):
         path_list = fn_i.split("/")
         for path_i in path_list:
         # iterate over segments of the path
-            if f_xi_str in path_i:
-                f_xi =_parse_slash_float(path_i.replace(f_xi_str, "").replace("_", "/"))
-            elif m_chi_str in path_i:
-                m_chi = float(path_i.replace(m_chi_str, "").replace(".npz", ""))
+            if f_xi_prefix in path_i:
+                f_xi =_parse_slash_float(path_i.replace(f_xi_prefix, "").replace("_", "/"))
+            elif m_chi_prefix in path_i:
+                m_chi = float(path_i.replace(m_chi_prefix, "").replace(".npz", ""))
         
         if f_xi is not None and m_chi is not None:
         # after reading f_xi and m_chi, the data is ready to be read
@@ -138,6 +138,7 @@ def plot_f(dn):
     plt.close()
 
 
+# TODO: make it compatible with the new data structure (with m3_2)
 def plot_f_new(dn):
     """
     plot f's stored in directory dn 
@@ -148,20 +149,20 @@ def plot_f_new(dn):
             - mᵪ=$m_chi.npz
         - ...
     """
-    f_xi_str = "f_ξ="
-    m_chi_str = "mᵪ="
+    f_xi_prefix = "f_ξ="
+    m_chi_prefix = "mᵪ="
 
     # get only subdirectories (full path)
     dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
     # get values of xi from directory name
-    ξs = [_parse_slash_float(x.replace(f_xi_str, "").replace("_", "/")) for x in dirs]
+    ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
 
     for (ξ, d_i) in zip(ξs, dirs):
         fns = [x for x in listdir(join(dn, d_i)) if isfile(join(dn, d_i, x))]
         # remove other files, like integrated.npz
         fns = [x for x in fns if x.startswith("mᵪ=")]
         # now assumes everything in f_ξ folders are npz files for f
-        ms = [float(x.replace(m_chi_str, "").replace(".npz", "")) for x in fns]
+        ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in fns]
         # sort the lists together
         fns, ms = zip(*sorted(zip(fns, ms)))
         #  print(fns, ms)
@@ -178,7 +179,7 @@ def plot_f_new(dn):
             color = cmap(ms_i/max(ms))
             #  print(color)
         
-            ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f} m_\phi$", c=color)
+            ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f}$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         out_fn = out_dn + f"f_ξ={ξ:.2f}.pdf"
@@ -193,13 +194,13 @@ def plot_f_new(dn):
 
 
 def plot_integrated(dn):
-    f_xi_str = "f_ξ="
-    m_chi_str = "mᵪ="
+    f_xi_prefix = "f_ξ="
+    m_chi_prefix = "mᵪ="
 
     # get only subdirectories (full path)
     dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
     # get values of xi from directory name
-    ξs = [_parse_slash_float(x.replace(f_xi_str, "").replace("_", "/")) for x in dirs]
+    ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
 
     for (ξ, d_i) in zip(ξs, dirs):
         fn = join(dn, d_i, "integrated.npz")

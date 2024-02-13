@@ -104,17 +104,25 @@ end
 save the spectra for various parameters (given as arguments);
 use multi-threading, remember use e.g. julia -n auto
 direct_out -> if return the results instead of save to npz
+
+results data structure:
+- ModelName
+    - f_ξ=ξ
+        m_χ=m_χ.npz
+
 """
-function save_each(mᵩ::Real, ode::ODEData, k::Vector, mᵪ::Vector,
-                   ξ::Vector, ξ_dir::Vector, get_m2_eff::Function,
+function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
+                   k::Vector, mᵪ::Vector, ξ::Vector, 
+                   get_m2_eff::Function,
                    dtmax::Real, direct_out::Bool=false)
     println("Computing spectra using ", Threads.nthreads(), " cores")
 
     # interate over the model parameters
-    for (ξᵢ, ξ_dirᵢ) in zip(ξ, ξ_dir)
+    for ξᵢ in ξ
         ρs = zeros(size(mᵪ))
         ns = zeros(size(mᵪ))
         f0s = zeros(size(mᵪ))
+        ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
 
         for (i, mᵪᵢ) in enumerate(mᵪ)
             #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
@@ -143,6 +151,24 @@ function save_each(mᵩ::Real, ode::ODEData, k::Vector, mᵪ::Vector,
             end
         end
         npzwrite("$(ξ_dirᵢ)integrated.npz", Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs./ (ode.aₑ * mᵩ)^4, "n"=>ns ./ (ode.aₑ * mᵩ)^3))
+    end
+end
+
+"""
+adding one more iteration over m3_2
+results data structure:
+- ModelName
+    - m3_2=m3_2
+        - f_ξ=ξ
+            m_χ=m_χ.npz
+"""
+function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
+                   k::Vector, mᵪ::Vector, ξ::Vector, m3_2::Vector,
+                   get_m2_eff::Function,
+                   dtmax::Real, direct_out::Bool=false)
+    m3_2_dir = [data_dir * "m3_2=$x/" for x in m3_2]
+    for x in m3_2_dir
+        save_each(x, mᵩ, ode, k, mᵪ, ξ, get_m2_eff, dtmax, direct_out)
     end
 end
 

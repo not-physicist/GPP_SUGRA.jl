@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import os
+from os import listdir 
+from os.path import isdir, isfile, join
 from glob import glob
 from pathlib import Path
 
@@ -87,6 +90,7 @@ def _parse_slash_float(s):
 
 
 def plot_f(dn):
+    # file names for output plots
     out_dn = "figs/" + dn.replace("data/", "") 
     out_fn = out_dn + "f.pdf"
     Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -97,7 +101,7 @@ def plot_f(dn):
     # remove ode file
     f_fns = [x for x in result if "ode.npz" not in x]
     ode_fn = [x for x in result if "ode.npz" in x]
-    #  print(f_fns, ode_fn)
+    print(f_fns, ode_fn)
 
     f_xi_str = "f_ξ="
     f_xi = None
@@ -117,6 +121,7 @@ def plot_f(dn):
                 m_chi = float(path_i.replace(m_chi_str, "").replace(".npz", ""))
         
         if f_xi is not None and m_chi is not None:
+        # after reading f_xi and m_chi, the data is ready to be read
             #  print(f_xi, m_chi)
             data = np.load(fn_i)
             f = data["f"]
@@ -124,8 +129,8 @@ def plot_f(dn):
             #  print(f, k)
             ax.plot(k, f, label=rf"$f_\xi = {f_xi:.2f}, m_\chi = {m_chi}$")
 
-    ax.set_xlabel("k")
-    ax.set_ylabel("f")
+    ax.set_xlabel(r"$k/(a_e m_\phi)$")
+    ax.set_ylabel(r"$f_\chi = |\beta|^2$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     plt.legend()
@@ -133,9 +138,105 @@ def plot_f(dn):
     plt.close()
 
 
-if __name__ == "__main__":
-    plot_background("data/TMode/")
-    plot_f("data/TMode/")
+def plot_f_new(dn):
+    """
+    plot f's stored in directory dn 
+    assumes the following file structure
+    dn/
+        - ode.npz
+        - f_ξ=$xi/
+            - mᵪ=$m_chi.npz
+        - ...
+    """
+    f_xi_str = "f_ξ="
+    m_chi_str = "mᵪ="
 
-    plot_background("data/SmallField/")
-    plot_f("data/SmallField/")
+    # get only subdirectories (full path)
+    dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+    # get values of xi from directory name
+    ξs = [_parse_slash_float(x.replace(f_xi_str, "").replace("_", "/")) for x in dirs]
+
+    for (ξ, d_i) in zip(ξs, dirs):
+        fns = [x for x in listdir(join(dn, d_i)) if isfile(join(dn, d_i, x))]
+        # remove other files, like integrated.npz
+        fns = [x for x in fns if x.startswith("mᵪ=")]
+        # now assumes everything in f_ξ folders are npz files for f
+        ms = [float(x.replace(m_chi_str, "").replace(".npz", "")) for x in fns]
+        # sort the lists together
+        fns, ms = zip(*sorted(zip(fns, ms)))
+        #  print(fns, ms)
+
+        fig, ax = plt.subplots()
+
+        for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
+            data = np.load(join(dn, d_i, fn_i))
+            f = data["f"]
+            k = data["k"]
+            #  print(f, k)
+
+            cmap = mpl.colormaps['viridis'].reversed()
+            color = cmap(ms_i/max(ms))
+            #  print(color)
+        
+            ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f} m_\phi$", c=color)
+
+        out_dn = "figs/" + dn.replace("data/", "") 
+        out_fn = out_dn + f"f_ξ={ξ:.2f}.pdf"
+
+        ax.set_xlabel(r"$k/(a_e m_\phi)$")
+        ax.set_ylabel(r"$f_\chi = |\beta|^2$")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        plt.legend()
+        plt.savefig(out_fn, bbox_inches="tight")
+        plt.close()
+
+
+def plot_integrated(dn):
+    f_xi_str = "f_ξ="
+    m_chi_str = "mᵪ="
+
+    # get only subdirectories (full path)
+    dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+    # get values of xi from directory name
+    ξs = [_parse_slash_float(x.replace(f_xi_str, "").replace("_", "/")) for x in dirs]
+
+    for (ξ, d_i) in zip(ξs, dirs):
+        fn = join(dn, d_i, "integrated.npz")
+        data = np.load(fn)
+        m = data["m_chi"]
+        f0 = data["f0"]
+        ρ = data["rho"]
+        n = data["n"]
+        #  print(f0, ρ, n)
+
+        fig, ax = plt.subplots()
+        ax.scatter(m, f0, label=r"$f_\chi(k\leftarrow 0) $")
+        ax.scatter(m, ρ, label=r"$a^4 \rho_\chi / m_\phi^4$")
+        ax.scatter(m, n, label=r"$a^3 n_\chi / m_\phi^3$")
+
+        ax.set_xlabel(r"$m_\chi / m_\phi$")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        plt.legend()
+
+        out_dn = "figs/" + dn.replace("data/", "") 
+        out_fn = out_dn + f"integrated_ξ={ξ:.2f}.pdf"
+        plt.savefig(out_fn, bbox_inches="tight")
+        plt.close()
+        
+
+
+if __name__ == "__main__":
+    # TMode
+    dn = "data/TMode/"
+    plot_background("data/TMode/")
+    plot_f_new("data/TMode/")
+    plot_integrated(dn)
+    
+    # SmallField
+    dn = "data/SmallField/"
+    #  plot_background("data/SmallField/")
+    #  plot_f("data/SmallField/")
+    #  plot_f_new("data/SmallField/")
+    #  plot_integrated(dn)

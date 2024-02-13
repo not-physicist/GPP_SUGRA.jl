@@ -68,7 +68,7 @@ function save_ode(data_dir::String="data/TMode/")
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 1.0)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 10)
 
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
     
@@ -83,20 +83,30 @@ function save_f(data_dir::String="data/TMode/")
     ode = read_ode(data_dir)
 
     k = logspace(-2, 2, 100) * ode.aₑ * model.mᵩ
-    mᵪ = [0.5, 1.0, 2.0] .* mᵩ
+    mᵪ = [0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
     ξ = [0.0]
     ξ_dir = ["0/"]
     ξ_dir = data_dir * "f_ξ=" .* ξ_dir 
     f = get_f(ode.ϕ, model, 0.0)
     m2_eff(ode, mᵪ, ξ) = get_m2_eff_R(ode, mᵪ, ξ, f)
 
-    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, m2_eff)
+    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, m2_eff, 1.0)
 end
 
-function test()
-    model = ModelDatas.TMode(1, 0.9649, 0.001)
-    @show model
-    ModelDatas.get_ϕₑ(model.α, model.n, model.ϕ_cmb)
+function test_save_f(data_dir::String="data/SmallField/")
+    model = ModelDatas.TMode(1, 0.965, 0.001)
+    mᵩ = model.mᵩ
+    ode = read_ode(data_dir)
+
+    k = logspace(-1, 1, 5) * ode.aₑ * model.mᵩ
+    mᵪ = [1.0] .* mᵩ
+    ξ = [1.0 / 6.0]
+    ξ_dir = ["data/f_ξ=0/"]
+    f = get_f(ode.ϕ, model, 0.0)
+    m2_eff(ode, mᵪ, ξ) = get_m2_eff_R(ode, mᵪ, ξ, f)
+
+    f = PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, m2_eff, 10, true)
+    @show f
     return true
 end
 

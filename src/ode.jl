@@ -37,8 +37,7 @@ solve ODE given the parameters and initial conditions
 function solve_ode(u₀::SVector{3, Float64}, 
                    tspan::Tuple{Float64, Float64}, 
                    p::Tuple{Function, Function},
-                   dtmax::Real=1e2)
-
+                   dtmax::Real)
     # define and solve ODE
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
     sol = solve(prob, DP8(), dtmax=dtmax)

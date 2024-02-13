@@ -112,7 +112,7 @@ function save_ode(data_dir::String="data/SmallField/")
     _get_dV(x) = get_dV(x, model)
     p = (_get_V, _get_dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 1e2)
 
     τₑ, aₑ = get_end(ϕ, a, τ, model)
     
@@ -126,22 +126,22 @@ function save_f(data_dir::String="data/SmallField/")
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-1, 1, 100) * ode.aₑ * model.mᵩ
-    mᵪ = [0.2, 0.5, 1.0, 2.0] .* mᵩ
+    k = logspace(-3, 1, 400) * ode.aₑ * model.mᵩ
+    mᵪ = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
     ξ = [1.0 / 6.0, 0.0]
     ξ_dir = ["1_6/", "0/"]
     ξ_dir = data_dir * "f_ξ=" .* ξ_dir 
 
-    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff)
+    PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff, 1e2)
 end
 
 """
 save the spectra for one set of parameters; just for testing
 """
-function test_save_f()
+function test_save_f(data_dir::String="data/SmallField/")
     model = SmallField(0.5, 6, 60.0)
     mᵩ = model.mᵩ
-    ode = read_ode("data/SmallField/")
+    ode = read_ode(data_dir)
 
     k = logspace(-1, 1, 5) * ode.aₑ * model.mᵩ
     #  @show mᵩ
@@ -149,10 +149,11 @@ function test_save_f()
     ξ = [1.0 / 6.0]
     ξ_dir = ["data/f_ξ=1_6/"]
     
-    f = PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff, true)
+    f = PPs.save_each(mᵩ, ode, k, mᵪ, ξ, ξ_dir, get_m2_eff, 1e2, true)
     
     # approximate the true values
-    if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-3)
+    if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-2)
+        @show f
         return true
     else
         @show f

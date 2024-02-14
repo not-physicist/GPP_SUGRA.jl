@@ -89,7 +89,7 @@ def _parse_slash_float(s):
         return float(s)
 
 
-def plot_f(dn):
+def plot_f_deprecated(dn):
     # file names for output plots
     out_dn = "figs/" + dn.replace("data/", "") 
     out_fn = out_dn + "f.pdf"
@@ -138,8 +138,7 @@ def plot_f(dn):
     plt.close()
 
 
-# TODO: make it compatible with the new data structure (with m3_2)
-def plot_f_new(dn):
+def plot_f(dn, out_suffix=""):
     """
     plot f's stored in directory dn 
     assumes the following file structure
@@ -151,11 +150,15 @@ def plot_f_new(dn):
     """
     f_xi_prefix = "f_ξ="
     m_chi_prefix = "mᵪ="
-
-    # get only subdirectories (full path)
-    dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
-    # get values of xi from directory name
-    ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
+    
+    try:
+        # get only subdirectories (full path)
+        dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+        # get values of xi from directory name
+        ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
+        print(dirs, ξs)
+    except ValueError:
+        raise ValueError("Check the given directory!")
 
     for (ξ, d_i) in zip(ξs, dirs):
         fns = [x for x in listdir(join(dn, d_i)) if isfile(join(dn, d_i, x))]
@@ -170,7 +173,8 @@ def plot_f_new(dn):
         fig, ax = plt.subplots()
 
         for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
-            data = np.load(join(dn, d_i, fn_i))
+            full_path = join(dn, d_i, fn_i)
+            data = np.load(full_path)
             f = data["f"]
             k = data["k"]
             #  print(f, k)
@@ -182,7 +186,8 @@ def plot_f_new(dn):
             ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f}$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
-        out_fn = out_dn + f"f_ξ={ξ:.2f}.pdf"
+        Path(out_dn).mkdir(parents=True, exist_ok=True)
+        out_fn = out_dn + f"f_ξ={ξ:.2f}" + out_suffix + ".pdf"
 
         ax.set_xlabel(r"$k/(a_e m_\phi)$")
         ax.set_ylabel(r"$f_\chi = |\beta|^2$")
@@ -191,6 +196,25 @@ def plot_f_new(dn):
         plt.legend()
         plt.savefig(out_fn, bbox_inches="tight")
         plt.close()
+
+
+def plot_f_m3_2(dn):
+    """
+    plot f; iterate over m3_2 first
+    """
+    m3_2_prefix = "m3_2="
+    try:
+        # get only subdirectories (full path)
+        dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+        # get values of xi from directory name
+        m3_2s = [float(x.replace(m3_2_prefix, "")) for x in dirs]
+        print(dirs, m3_2s)
+    except ValueError:
+        raise ValueError("Check the given directory!")
+    
+    for (x, y) in zip(dirs, m3_2s):
+        dn_i = dn + x + "/"
+        plot_f(dn_i)
 
 
 def plot_integrated(dn):
@@ -225,19 +249,17 @@ def plot_integrated(dn):
         out_fn = out_dn + f"integrated_ξ={ξ:.2f}.pdf"
         plt.savefig(out_fn, bbox_inches="tight")
         plt.close()
-        
 
 
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
-    plot_background("data/TMode/")
-    plot_f_new("data/TMode/")
-    plot_integrated(dn)
+    #  plot_background("data/TMode/")
+    plot_f_m3_2("data/TMode/")
+    #  plot_integrated(dn)
     
     # SmallField
     dn = "data/SmallField/"
     #  plot_background("data/SmallField/")
-    #  plot_f("data/SmallField/")
-    #  plot_f_new("data/SmallField/")
+    plot_f("data/SmallField/")
     #  plot_integrated(dn)

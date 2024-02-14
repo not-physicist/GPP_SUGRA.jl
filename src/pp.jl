@@ -75,7 +75,9 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real)
     #  adaptive algorithm depends on relative tolerance
     sol = solve(prob, RK4(), reltol=1e-20)
     #  sol = solve(prob, DP8(), dtmax=dtmax)
-        
+    #  using stiff solvers 
+    #  sol = solve(prob, AutoTsit5(Rodas4()))
+    
     f = abs(sol.u[end][2])^2
     max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
     #  @show f, max_err
@@ -166,9 +168,10 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    k::Vector, mᵪ::Vector, ξ::Vector, m3_2::Vector,
                    get_m2_eff::Function,
                    dtmax::Real, direct_out::Bool=false)
-    m3_2_dir = [data_dir * "m3_2=$x/" for x in m3_2]
-    for x in m3_2_dir
-        save_each(x, mᵩ, ode, k, mᵪ, ξ, get_m2_eff, dtmax, direct_out)
+    for x in m3_2
+        m3_2_dir = data_dir * "m3_2=$x/"
+        m2_eff(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
+        save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff, dtmax, direct_out)
     end
 end
 

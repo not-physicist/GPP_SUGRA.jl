@@ -91,10 +91,9 @@ function save_f(data_dir::String=MODEL_DATA_DIR)
     mᵪ = [0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
 
     ξ = [0.0]
-    m3_2 = [0.0, 1.0]
+    m3_2 = [0.0, 0.1]
 
-    f = get_f(ode.ϕ, model, 0.0)
-    m2_eff(ode, mᵪ, ξ) = get_m2_eff_R(ode, mᵪ, ξ, f)
+    m2_eff(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff, 1.0)
     return true
 end

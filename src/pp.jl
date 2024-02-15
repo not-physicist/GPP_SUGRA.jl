@@ -64,8 +64,9 @@ end
 """
 Solve the differential equations for GPP
 dtmax not used, but keep just in case
+NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real)
+function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
     ω, dω, Ω, t_span = init_func(k, ode, m2_eff)
     p = SA[ω, dω, Ω]
 
@@ -73,11 +74,13 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real)
 
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-20)
+    sol = solve(prob, RK4(), reltol=1e-20, save_everystep=false, maxiters=1e6)
     #  sol = solve(prob, DP8(), dtmax=dtmax)
     #  using stiff solvers 
-    #  sol = solve(prob, AutoTsit5(Rodas4()))
-    
+    #  TODO: check if the solver is ok for all the cases;
+    #  TODO: check the behaviour of save_everystep option
+    #  sol = solve(prob, AutoTsit5(Rosenbrock23(autodiff=false)), save_everystep=false, maxiters=1e7, reltol=1e-20)
+
     f = abs(sol.u[end][2])^2
     max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
     #  @show f, max_err
@@ -115,8 +118,10 @@ results data structure:
 """
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
                    k::Vector, mᵪ::Vector, ξ::Vector, 
-                   get_m2_eff::Function,
-                   dtmax::Real, direct_out::Bool=false)
+                   get_m2_eff::Function;
+                   dtmax::Real=false, 
+                   direct_out::Bool=false,
+                   fn_suffix::String="")
     println("Computing spectra using ", Threads.nthreads(), " cores")
 
     # interate over the model parameters
@@ -149,10 +154,13 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 return f
             else
                 mkpath(ξ_dirᵢ)
-                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ).npz", Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
+                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz", 
+                         Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
             end
         end
-        npzwrite("$(ξ_dirᵢ)integrated.npz", Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs./ (ode.aₑ * mᵩ)^4, "n"=>ns ./ (ode.aₑ * mᵩ)^3))
+        npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz", 
+                 Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs./ (ode.aₑ * mᵩ)^4, 
+                      "n"=>ns ./ (ode.aₑ * mᵩ)^3))
     end
 end
 
@@ -165,13 +173,17 @@ results data structure:
             m_χ=m_χ.npz
 """
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
-                   k::Vector, mᵪ::Vector, ξ::Vector, m3_2::Vector,
-                   get_m2_eff::Function,
-                   dtmax::Real, direct_out::Bool=false)
+                   k::Vector, mᵪ::Vector, ξ::Vector, 
+                   m3_2::Vector,
+                   get_m2_eff::Function;
+                   dtmax::Real=false, 
+                   direct_out::Bool=false,
+                   fn_suffix::String="")
     for x in m3_2
-        m3_2_dir = data_dir * "m3_2=$x/"
-        m2_eff(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
-        save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff, dtmax, direct_out)
+        m3_2_dir = data_dir * "m3_2=$(x/mᵩ)/"
+        m2_eff_R(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
+        save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff_R, 
+                  dtmax=dtmax, direct_out=direct_out, fn_suffix=fn_suffix)
     end
 end
 

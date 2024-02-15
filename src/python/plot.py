@@ -156,7 +156,7 @@ def plot_f(dn, out_suffix=""):
         dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
         # get values of xi from directory name
         ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
-        print(dirs, ξs)
+        #  print(dirs, ξs)
     except ValueError:
         raise ValueError("Check the given directory!")
 
@@ -164,14 +164,28 @@ def plot_f(dn, out_suffix=""):
         fns = [x for x in listdir(join(dn, d_i)) if isfile(join(dn, d_i, x))]
         # remove other files, like integrated.npz
         fns = [x for x in fns if x.startswith("mᵪ=")]
-        # now assumes everything in f_ξ folders are npz files for f
-        ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in fns]
+
+        try:
+            ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in fns]
+        except ValueError:
+            # then probably there is suffix in the file name, e.g. for specifying R and I parents
+            _fns_wo_suffix = [x.replace("_R", "").replace("_I", "") for x in fns] 
+            ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in _fns_wo_suffix]
+            
+
         # sort the lists together
         fns, ms = zip(*sorted(zip(fns, ms)))
-        #  print(fns, ms)
-
+        # arrays to store if th file corresponds to R/I field
+        # need two arrays since sometimes no distinct fields
+        fn_R = [1 if "_R" in x else 0 for x in fns]
+        fn_I = [1 if "_I" in x else 0 for x in fns]
+        
         fig, ax = plt.subplots()
 
+        cmap = mpl.colormaps['viridis'].reversed()
+        cmap2 = mpl.colormaps['magma'].reversed()
+        
+        # plot each spectrum
         for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
             full_path = join(dn, d_i, fn_i)
             data = np.load(full_path)
@@ -179,11 +193,15 @@ def plot_f(dn, out_suffix=""):
             k = data["k"]
             #  print(f, k)
 
-            cmap = mpl.colormaps['viridis'].reversed()
-            color = cmap(ms_i/max(ms))
-            #  print(color)
-        
-            ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f}$", c=color)
+            if fn_I[i] == 1:
+                color = cmap(ms_i/max(ms))
+                ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f} m_\phi$, I", c=color, ls="--")
+            elif fn_R[i] == 1:
+                color = cmap(ms_i/max(ms))
+                ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f} m_\phi$, R", c=color)
+            else:
+                color = cmap(ms_i/max(ms))
+                ax.plot(k, f, label=rf"$m_\chi = {ms_i:.1f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -208,7 +226,7 @@ def plot_f_m3_2(dn):
         dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
         # get values of xi from directory name
         m3_2s = [float(x.replace(m3_2_prefix, "")) for x in dirs]
-        print(dirs, m3_2s)
+        #  print(dirs, m3_2s)
     except ValueError:
         raise ValueError("Check the given directory!")
     
@@ -251,15 +269,33 @@ def plot_integrated(dn):
         plt.close()
 
 
+def plot_m_eff(dn):
+    fn = dn + "m_eff.npz"
+    data = np.load(fn)
+    τ = data["tau"]
+    m2_I = data["m2_I"]
+    m2_R = data["m2_R"]
+
+    fig, ax = plt.subplots()
+    ax.plot(τ, m2_R, label="R", c="k")
+    ax.plot(τ, m2_I, label="I", c="grey", ls="--")
+
+    ax.set_xlabel(r"$\tau$")
+    ax.set_ylabel(r"$m^2_{\rm eff} / m_\chi^2$")
+
+    plt.savefig(dn.replace("data", "figs") + "m2.pdf", bbox_inches="tight")
+
+# TODO: fixed borked plot due to _L and _R
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
     #  plot_background("data/TMode/")
     plot_f_m3_2("data/TMode/")
     #  plot_integrated(dn)
+    #  plot_m_eff(dn)
     
     # SmallField
     dn = "data/SmallField/"
     #  plot_background("data/SmallField/")
-    plot_f("data/SmallField/")
+    #  plot_f("data/SmallField/")
     #  plot_integrated(dn)

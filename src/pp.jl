@@ -1,6 +1,6 @@
 module PPs
 
-using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations, Folds
+using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations, Folds, ProgressBars
 #  using Infiltritor
 
 using ..Commons
@@ -122,7 +122,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    dtmax::Real=false, 
                    direct_out::Bool=false,
                    fn_suffix::String="")
-    println("Computing spectra using ", Threads.nthreads(), " cores")
+    #  println("Computing spectra using ", Threads.nthreads(), " cores")
 
     # interate over the model parameters
     for ξᵢ in ξ
@@ -138,7 +138,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             #  @show m2_eff[1:10000:end]
             
             # Folds.collect is the multi-threaded version of collect
-            res = @time Folds.collect(solve_diff(x, ode, m2_eff, dtmax) for x in k)
+            #  res = @time Folds.collect(solve_diff(x, ode, m2_eff, dtmax) for x in k)
+            res = Folds.collect(solve_diff(x, ode, m2_eff, dtmax) for x in k)
             # maybe some optimization is possible here...
             f = [x[1] for x in res]
             err = [x[2] for x in res]
@@ -179,7 +180,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    dtmax::Real=false, 
                    direct_out::Bool=false,
                    fn_suffix::String="")
-    for x in m3_2
+    for x in ProgressBar(m3_2)
         m3_2_dir = data_dir * "m3_2=$(x/mᵩ)/"
         m2_eff_R(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
         save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff_R, 

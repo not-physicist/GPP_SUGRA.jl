@@ -105,7 +105,7 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
     a = ode.a
 
     ξ = 0.0
-    m3_2 = 0.1 * mᵩ
+    m3_2 = 1.0 * mᵩ
     mᵪ = 1.0 * mᵩ
 
     f = get_f(ode.ϕ, model, m3_2)
@@ -120,10 +120,11 @@ function save_f(data_dir::String=MODEL_DATA_DIR)
     ode = read_ode(data_dir)
 
     k = logspace(-2, 2, 100) * ode.aₑ * model.mᵩ
-    mᵪ = [0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
+    #  mᵪ = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
+    mᵪ =  logspace(-1.3, 0.7, 50).* mᵩ
 
     ξ = [0.0]
-    m3_2 = [0.0, 0.1, 0.5, 1.0] * mᵩ
+    m3_2 = [0.0, 0.2, 0.5, 1.0, 2.0, 5.0] * mᵩ
     #  m3_2 = [0.0]
 
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))

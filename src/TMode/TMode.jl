@@ -60,6 +60,7 @@ function get_m2_eff_R(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ 2 .* f.^2 .+ mᵪ.*f)
     return m2
 end
+get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (mᵪ^2) ./ ode.a.^2
 
 """
 effective mass squared of the imaginary field
@@ -72,6 +73,7 @@ function get_m2_eff_I(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ 2 .* f.^2 .- mᵪ.*f)
     return m2
 end
+get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (mᵪ^2) ./ ode.a.^2
 
 function save_ode(data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
@@ -80,7 +82,7 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
     @show model
 
     # initial conditions
-    u₀ = SA[1.5 * model.ϕₑ, 0.0, 1.0]
+    u₀ = SA[1.6 * model.ϕₑ, 0.0, 1.0]
     τᵢ = - 1 / get_Hinf(model)
     tspan = (τᵢ, -τᵢ)
 
@@ -102,16 +104,23 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
     model = TMode(1, 0.965, 0.001)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
-    a = ode.a
+    #  a = ode.a
 
     ξ = 0.0
-    m3_2 = 1.0 * mᵩ
-    mᵪ = 1.0 * mᵩ
+    m3_2 = [0.0, 1.0] * mᵩ
+    mᵪ = logspace(-1.3, 0.7, 10).* mᵩ
+    
+    for x in m3_2
+        dn = "$(data_dir)m_eff/m3_2=$(x/mᵩ)/"
+        mkpath(dn)
+        for y in mᵪ
+            fn = dn * "mᵪ=$(y/mᵩ).npz"
+            m_R = get_m2_eff_R(ode, model, ξ, x, y)
+            m_I = get_m2_eff_I(ode, model, ξ, x, y)
+            npzwrite(fn, Dict("tau" => ode.τ, "m2_R" => m_R, "m2_I" => m_I))
+        end
+    end
 
-    f = get_f(ode.ϕ, model, m3_2)
-    m2_R = get_m2_eff_R(ode, mᵪ, ξ, f) / (mᵪ^2) ./ a.^2
-    m2_I = get_m2_eff_I(ode, mᵪ, ξ, f) / (mᵪ^2) ./ a.^2
-    npzwrite("$(data_dir)m_eff.npz", Dict("tau" => ode.τ, "m2_R" => m2_R, "m2_I" => m2_I))
 end
 
 function save_f(data_dir::String=MODEL_DATA_DIR)

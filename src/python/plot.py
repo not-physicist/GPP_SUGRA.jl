@@ -11,20 +11,9 @@ from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
-def plot_ode():
-    data = np.load("data/ode.npz")
-    a = data["a"]
-    phi = data["phi"]
-    τ = data["tau"]
-
-    plt.plot(τ, phi)
-    #  plt.plot(a, phi)
-    plt.xlabel("$a$")
-    plt.ylabel(r"$\phi / m_{\rm pl}$")
-    #  plt.show()
-    plt.savefig("figs/ode.pdf", bbox_inches="tight")
-
-
+#####################################################################################
+# Background
+#####################################################################################
 def plot_background(dn):
     fn = dn + "ode.npz"
     out_dn = "figs/" + dn.replace("data/", "")
@@ -81,6 +70,9 @@ def plot_background(dn):
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
 
+#####################################################################################
+# helper functions
+#####################################################################################
 
 def _parse_slash_float(s):
     """
@@ -91,55 +83,6 @@ def _parse_slash_float(s):
         return nums[0] / nums[1]
     else:
         return float(s)
-
-
-def plot_f_deprecated(dn):
-    # file names for output plots
-    out_dn = "figs/" + dn.replace("data/", "") 
-    out_fn = out_dn + "f.pdf"
-    Path(out_dn).mkdir(parents=True, exist_ok=True)
-
-    # recursively find npz files
-    result = [y for x in os.walk(dn) for y in glob(os.path.join(x[0], '*.npz'))]
-
-    # remove ode file
-    f_fns = [x for x in result if "ode.npz" not in x]
-    ode_fn = [x for x in result if "ode.npz" in x]
-    print(f_fns, ode_fn)
-
-    f_xi_prefix = "f_ξ="
-    f_xi = None
-    m_chi_prefix = "mᵪ="
-    m_chi = None
-
-    fig, ax = plt.subplots()
-
-    for fn_i in f_fns:
-    # iterate over different file paths
-        path_list = fn_i.split("/")
-        for path_i in path_list:
-        # iterate over segments of the path
-            if f_xi_prefix in path_i:
-                f_xi =_parse_slash_float(path_i.replace(f_xi_prefix, "").replace("_", "/"))
-            elif m_chi_prefix in path_i:
-                m_chi = float(path_i.replace(m_chi_prefix, "").replace(".npz", ""))
-        
-        if f_xi is not None and m_chi is not None:
-        # after reading f_xi and m_chi, the data is ready to be read
-            #  print(f_xi, m_chi)
-            data = np.load(fn_i)
-            f = data["f"]
-            k = data["k"]
-            #  print(f, k)
-            ax.plot(k, f, label=rf"$f_\xi = {f_xi:.2f}, m_\chi = {m_chi}$")
-
-    ax.set_xlabel(r"$k/(a_e m_\phi)$")
-    ax.set_ylabel(r"$f_\chi = |\beta|^2$")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    plt.legend()
-    plt.savefig(out_fn, bbox_inches="tight")
-    plt.close()
 
 
 def _get_xi_dn(dn):
@@ -179,11 +122,11 @@ def _get_m_fn(dn, sparse=1):
         _fns_wo_suffix = [x.replace("_R", "").replace("_I", "") 
                               for x in fns] 
         ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in _fns_wo_suffix]
-
+    
     # sort the lists together
     fns, ms = zip(*sorted(zip(fns, ms)))
 
-    if sparse is not False:
+    if sparse < 1:
         _skip = int(1/sparse)
         # have to ensure having both fields
         _fns_R = [x for x in fns if "_R" in x][::_skip]
@@ -212,11 +155,13 @@ def _get_integrated_fn(dn):
     return fns, fn_R, fn_I
 
 
-def _get_m3_2_dir(dn):
+def _get_m3_2_dir(dn, exclude=[]):
     m3_2_prefix = "m3_2="
     try:
         # get only subdirectories (full path)
         dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+        dirs = [x for x in dirs if x not in exclude]
+        #  print(dirs)
         # get values of xi from directory name
         m3_2s = [float(x.replace(m3_2_prefix, "")) for x in dirs]
         #  print(dirs, m3_2s)
@@ -225,6 +170,12 @@ def _get_m3_2_dir(dn):
     dirs, m3_2s = zip(*sorted(zip(dirs, m3_2s)))
     return dirs, m3_2s
 
+#####################################################################################
+# plotting spectrum 
+#####################################################################################
+
+# to be excluded
+DIR_TO_EXCLUDE = ['m_eff']
 
 def plot_f(dn, out_suffix="", sparse=1):
     """
@@ -296,12 +247,15 @@ def plot_f_m3_2(dn, sparse=1):
     """
     plot f; iterate over m3_2 first
     """
-    dirs, m3_2s = _get_m3_2_dir(dn)
+    dirs, m3_2s = _get_m3_2_dir(dn, exclude=DIR_TO_EXCLUDE)
 
     for (x, y) in zip(dirs, m3_2s):
         dn_i = dn + x + "/"
         plot_f(dn_i, sparse=sparse)
 
+#####################################################################################
+# integrated quantities
+#####################################################################################
 
 def plot_integrated(dn):
     dirs, ξs = _get_xi_dn(dn)
@@ -341,12 +295,17 @@ def _get_n(fn):
     return m, rho
 
 
+def _power_law(x, a, b, n):
+    x = np.array(x)
+    return a*x**n + b
+
+
 def plot_integrated_comp(dn, add=False):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
     """
-    dirs, m3_2s = _get_m3_2_dir(dn)
+    dirs, m3_2s = _get_m3_2_dir(dn, exclude=DIR_TO_EXCLUDE)
 
     fig, ax = plt.subplots()
     cmap = mpl.colormaps['viridis'].reversed()
@@ -364,6 +323,7 @@ def plot_integrated_comp(dn, add=False):
             #  print(full_fns, fn_R, fn_I)
             
             if add:
+                # plot both fields together
                 full_fns_R = [x for x in full_fns if "_R" in x]
                 full_fns_I = [x for x in full_fns if "_I" in x]
                 for i, (fn_R, fn_I) in enumerate(zip(full_fns_R, full_fns_I)):
@@ -374,7 +334,8 @@ def plot_integrated_comp(dn, add=False):
                         rho = rho_R + rho_I
 
                         color = cmap(y/max(m3_2s))
-                        ax.plot(m, rho, color=color)
+                        label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
+                        ax.plot(m, rho, color=color, label=label)
                     else:
                         raise(ValueError("Something went wrong!"))
             else:
@@ -382,17 +343,21 @@ def plot_integrated_comp(dn, add=False):
                 for i, fn_i in enumerate(full_fns):
                     #  print(fn_i)
                     m, rho = _get_n(fn_i)
-
-                    #  label=f"$m_{{3/2}}={y:.1f}$"
+                    label = ''
                     ls = "-"
                     if fn_R[i] == 1:
                         ls = "-"
+                        label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
                     elif fn_I[i] == 1:
                         ls = "--"
                     else:
                         pass
                     color = cmap(y/max(m3_2s))
-                    ax.plot(m, rho, color=color, ls=ls)
+                    ax.plot(m, rho, color=color, ls=ls, label=label)
+    
+    # add linear part for visual guidance
+    if add:
+        ax.plot([0.1, 1], _power_law([0.1, 1], 1e-5, 0, 1), color="grey", ls="--", label="linear")
 
     ax.set_xlabel(r"$m_\chi / m_\phi$")
     ax.set_ylabel(r"$a^3 n_\chi m_\chi / m_\phi^4$")
@@ -400,7 +365,7 @@ def plot_integrated_comp(dn, add=False):
     ax.set_yscale("log")
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    #  plt.legend()
+    plt.legend()
     
     out_fn = dn.replace("data", "figs") + "integrated_comp"
     if add:
@@ -410,29 +375,59 @@ def plot_integrated_comp(dn, add=False):
     plt.savefig(out_fn, bbox_inches="tight")
     plt.close()
 
+#####################################################################################
+# effective mass squared
+#####################################################################################
 
-def plot_m_eff(dn):
-    fn = dn + "m_eff.npz"
+def _draw_m(fn, ax):
+    #  fn = dn + "m_eff.npz"
     data = np.load(fn)
     τ = data["tau"]
     m2_I = data["m2_I"]
     m2_R = data["m2_R"]
 
-    fig, ax = plt.subplots()
+    #  fig, ax = plt.subplots()
     ax.plot(τ, m2_R, label="R", c="k")
     ax.plot(τ, m2_I, label="I", c="grey", ls="--")
 
-    ax.set_xlabel(r"$\tau$")
-    ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\chi)^2$")
+    #  ax.set_xlabel(r"$\tau$")
+    #  ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\chi)^2$")
 
-    plt.savefig(dn.replace("data", "figs") + "m2.pdf", bbox_inches="tight")
+    #  plt.savefig(dn.replace("data", "figs") + "m2.pdf", bbox_inches="tight")
+
+
+def plot_m_eff(dn):
+    dirs, m3_2s = _get_m3_2_dir(dn + "m_eff/")
+    cmap = mpl.colormaps['magma'].reversed()
+
+    for (d, m) in zip(dirs, m3_2s):
+        fns, ms = _get_m_fn(join(dn + "m_eff/", d))
+        fig, ax = plt.subplots()
+        
+        for (x, y) in zip(fns, ms):
+            data = np.load(join(dn, "m_eff/", d, x))
+            τ = data["tau"]
+            m2_I = data["m2_I"]
+            m2_R = data["m2_R"]
+
+            color = cmap(y/max(ms))
+            ax.plot(τ, m2_R, c=color, label=f"$m_\chi={y:.2f}m_\phi$")
+            ax.plot(τ, m2_I, c=color, ls="--")
+
+        ax.set_xlabel(r"$\tau$")
+        ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\chi)^2$")
+        ax.set_yscale("log")
+        plt.legend()
+
+        plt.savefig(dn.replace("data", "figs") + f"m2_m3_2={m:.1f}.pdf", bbox_inches="tight")
+        plt.close()
 
 
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
-    #  plot_background("data/TMode/")
-    plot_f_m3_2("data/TMode/", sparse=0.15)
+    #  plot_background(dn)
+    plot_f_m3_2(dn, sparse=0.15)
     #  plot_integrated_comp(dn, add=True)
     #  plot_integrated_comp(dn)
     #  plot_m_eff(dn)

@@ -14,12 +14,8 @@ rc('text', usetex=True)
 #####################################################################################
 # Background
 #####################################################################################
-def plot_background(dn):
+def read_ode(dn):
     fn = dn + "ode.npz"
-    out_dn = "figs/" + dn.replace("data/", "")
-    out_fn = out_dn + "background.pdf"
-    Path(out_dn).mkdir(parents=True, exist_ok=True)
-
     data = np.load(fn)
     tau = data['tau']
     phi = data['phi']
@@ -27,8 +23,20 @@ def plot_background(dn):
     a = data['a']
     app_a = data["app_a"]
     a_end = data["a_end"]
+    H_end = data["H_end"]
     err = data["err"]
     H = data["H"]
+    mᵩ = data["m_phi"]
+    return tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ
+
+
+def plot_background(dn):
+    fn = dn + "ode.npz"
+    out_dn = "figs/" + dn.replace("data/", "")
+    out_fn = out_dn + "background.pdf"
+    Path(out_dn).mkdir(parents=True, exist_ok=True)
+
+    tau, phi, phi_d,a, app_a, a_end, H_end, err, H = read_ode(dn)
 
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
@@ -287,7 +295,7 @@ def plot_integrated(dn):
 
 def _get_n(fn):
     """
-    get m_chi and its eventual energy density from fn (npz file!)
+    get m_chi and nᵪ * (mᵪ / mᵩ)
     """
     data = np.load(fn)
     m = data["m_chi"]
@@ -300,7 +308,17 @@ def _power_law(x, a, b, n):
     return a*x**n + b
 
 
-def plot_integrated_comp(dn, add=False):
+def get_ρ_s_Trh(nm, mᵩ, aₑ, Hₑ):
+    """
+    calculate ρ_{χ, 0} / (s₀ T_{rh})
+    assume all inputs are in reduced planck unit
+    except nm which  is nᵪ * (mᵪ / m_ϕ)
+    """
+    #  return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
+    return nm
+
+
+def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
@@ -331,11 +349,12 @@ def plot_integrated_comp(dn, add=False):
                     m_I, rho_I = _get_n(fn_I)
                     if np.array_equal(m_R, m_I):
                         m = m_R
-                        rho = rho_R + rho_I
+                        #  rho = rho_R + rho_I
+                        ρ_s_T = get_ρ_s_Trh(rho_R + rho_I, mᵩ, aₑ, Hₑ)
 
                         color = cmap(y/max(m3_2s))
                         label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
-                        ax.plot(m, rho, color=color, label=label)
+                        ax.plot(m, ρ_s_T, color=color, label=label)
                     else:
                         raise(ValueError("Something went wrong!"))
             else:
@@ -353,14 +372,16 @@ def plot_integrated_comp(dn, add=False):
                     else:
                         pass
                     color = cmap(y/max(m3_2s))
-                    ax.plot(m, rho, color=color, ls=ls, label=label)
+                    ρ_s_T = get_ρ_s_Trh(rho, mᵩ, aₑ, Hₑ)
+                    ax.plot(m, ρ_s_T, color=color, ls=ls, label=label)
     
     # add linear part for visual guidance
     if add:
-        ax.plot([0.1, 1], _power_law([0.1, 1], 1e-5, 0, 1), color="grey", ls="--", label="linear")
+        ax.plot([0.1, 1], _power_law([0.1, 1], 1e-12, 0, 1), color="grey", ls="--", label="linear")
+        #  pass
 
     ax.set_xlabel(r"$m_\chi / m_\phi$")
-    ax.set_ylabel(r"$a^3 n_\chi m_\chi / m_\phi^4$")
+    ax.set_ylabel(r"$\rho_\chi/(s_0 T_{\rm rh})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.spines['top'].set_visible(False)
@@ -415,7 +436,7 @@ def plot_m_eff(dn):
             ax.plot(τ, m2_I, c=color, ls="--")
 
         ax.set_xlabel(r"$\tau$")
-        ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\chi)^2$")
+        ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\phi)^2$")
         ax.set_yscale("log")
         plt.legend()
 
@@ -426,10 +447,11 @@ def plot_m_eff(dn):
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
+    _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
     #  plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.15)
-    #  plot_integrated_comp(dn, add=True)
-    #  plot_integrated_comp(dn)
+    #  plot_f_m3_2(dn, sparse=0.15)
+    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     
     # SmallField

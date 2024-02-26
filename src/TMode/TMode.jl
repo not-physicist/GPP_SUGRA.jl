@@ -60,7 +60,7 @@ function get_m2_eff_R(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ 2 .* f.^2 .+ mᵪ.*f)
     return m2
 end
-get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (mᵪ^2) ./ ode.a.^2
+get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2) ./ ode.a.^2
 
 """
 effective mass squared of the imaginary field
@@ -73,7 +73,7 @@ function get_m2_eff_I(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ 2 .* f.^2 .- mᵪ.*f)
     return m2
 end
-get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (mᵪ^2) ./ ode.a.^2
+get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2) ./ ode.a.^2
 
 function save_ode(data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)

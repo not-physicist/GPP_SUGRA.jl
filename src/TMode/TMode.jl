@@ -94,9 +94,10 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
     τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 10)
 
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
+    τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)    
     
     mkpath(data_dir)
-    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H))
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ))
     return true
 end
 

@@ -79,6 +79,7 @@ function get_Hinf(model::SmallField)
     return √(get_V(0.0, model) / 3.0)
 end
 
+#=
 """
 get scale factor and conformal time at the end of inflation
 """
@@ -98,6 +99,7 @@ function get_end(ϕ::Vector, a::Vector, τ::Vector, model::SmallField)
     #  print("$ϕₑ, $τₑ, $aₑ \n")
     return τₑ, aₑ
 end
+=#
 
 """
 Calculate the background quantities and save to data/ode.npz
@@ -118,10 +120,12 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
     
     τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 1e2)
 
-    τₑ, aₑ = get_end(ϕ, a, τ, model)
+    τₑ, aₑ = get_end(ϕ, dϕ, a, τ, ϕₑ)
+    τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, ϕₑ)
+    @show Hₑ
     
     mkpath(data_dir)
-    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H))
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ))
     return true
 end
 
@@ -157,7 +161,7 @@ function test_save_f(data_dir::String=MODEL_DATA_DIR)
     
     # approximate the true values
     if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-2)
-        #  @show f
+        @show f
         return true
     else
         @show f

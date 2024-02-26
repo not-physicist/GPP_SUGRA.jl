@@ -5,10 +5,8 @@ module Commons
 
 using NPZ, Interpolations
 
-export logspace
-export read_ode
-export ODEData
-export get_end
+export logspace, read_ode, ODEData, get_end
+
 """
 returns an array whose elements are even spaced on logarithmic scale
 """
@@ -30,6 +28,7 @@ struct ODEData{V<:Vector, F<:Real}
     err::V
 
     aₑ::F
+    Hₑ::F
 end
 
 
@@ -48,15 +47,17 @@ function read_ode(data_dir::String)
     H = data["H"]
     err = data["err"]
     aₑ = data["a_end"]
-    return ODEData(τ, ϕ, dϕ, a, app_a, H, err, aₑ)
+    Hₑ = data["H_end"]
+    return ODEData(τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ)
 end
 
 """
 get scale factor and conformal time at the end of inflation
+can actually replace scale factor witn any other quantity
 """
 function get_end(ϕ::Vector, dϕ::Vector, a::Vector, τ::Vector, ϕₑ::Real)
     # generate an appropriate mask
-    flag = true  # if dϕ hasn't changed sign 
+    flag = true  # whether dϕ has changed sign 
     i = 1  # index for while
     mask = zeros(Int, size(ϕ))
     while flag == true && i < size(ϕ)[1]

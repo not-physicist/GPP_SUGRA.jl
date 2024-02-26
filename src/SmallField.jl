@@ -79,28 +79,6 @@ function get_Hinf(model::SmallField)
     return √(get_V(0.0, model) / 3.0)
 end
 
-#=
-"""
-get scale factor and conformal time at the end of inflation
-"""
-function get_end(ϕ::Vector, a::Vector, τ::Vector, model::SmallField)
-    # to ensure ϕ is monotonic increasing; 0.4 should be fine for (v=0.5) now
-    # TODO: can be improved by checking sign of dϕ
-    (;v, n, Nₑ, M, mᵩ, ϕₑ) = model
-    τ = τ[ϕ .< 0.4]
-    a = a[ϕ .< 0.4]
-    ϕ = ϕ[ϕ .< 0.4]
-
-    itp = interpolate((ϕ,), τ, Gridded(Linear()))
-    τₑ = itp(ϕₑ)
-
-    itp = interpolate((τ,), a, Gridded(Linear()))
-    aₑ = itp(τₑ)
-    #  print("$ϕₑ, $τₑ, $aₑ \n")
-    return τₑ, aₑ
-end
-=#
-
 """
 Calculate the background quantities and save to data/ode.npz
 """
@@ -122,10 +100,9 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
 
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, ϕₑ)
     τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, ϕₑ)
-    @show Hₑ
     
     mkpath(data_dir)
-    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ))
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     return true
 end
 

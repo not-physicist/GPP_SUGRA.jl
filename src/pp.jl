@@ -94,10 +94,7 @@ compute comoving energy (a⁴ρ) given k, m2, and f arrays
 function get_com_energy(k::Vector, f::Vector, m2::Real)
     ω = sqrt.(k .^2 .+ m2)
     integrand = k.^2 .* ω .* f ./ (4*π^2)
-    #  @show k, integrand
     return integrate(k, integrand)
-    #  integrand = k.^3 .* ω .* f ./ (4*π^2)
-    #  return integrate(log10.(k), integrand)
 end
 
 function get_com_number(k::Vector, f::Vector)
@@ -159,9 +156,17 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                          Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
             end
         end
+        # k is in planck unit
+        # want ρ and n in planck unit as well
+        # add all other factors in the plotting
+        npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz", 
+                 Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
+        #=
+        # in (aₑ mᵩ) unit
         npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz", 
                  Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs./ (ode.aₑ * mᵩ)^4, 
                       "n"=>ns ./ (ode.aₑ * mᵩ)^3))
+        =#
     end
 end
 

@@ -1,3 +1,6 @@
+"""
+Program in reduced planck unit
+"""
 module GPP_SUGRA
 
 export SmallFields

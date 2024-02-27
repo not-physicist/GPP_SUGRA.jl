@@ -72,6 +72,8 @@ function get_m2_eff_I(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ 2 .* f.^2 .- mᵪ.*f)
     return m2
 end
+get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
+get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 
 function save_ode(data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
@@ -105,8 +107,6 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
     ode = read_ode(data_dir)
     #  a = ode.a
 
-    get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2) ./ ode.a.^2
-    get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2) ./ ode.a.^2
 
     ξ = 0.0
     m3_2 = [0.0, 1.0] * mᵩ
@@ -131,11 +131,10 @@ function save_f(data_dir::String=MODEL_DATA_DIR)
 
     k = logspace(-2, 2, 100) * ode.aₑ * model.mᵩ
     #  mᵪ = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
-    mᵪ =  logspace(-1.3, 0.7, 10).* mᵩ
+    mᵪ =  logspace(-1.3, 0.7, 50).* mᵩ
 
     ξ = [0.0]
     m3_2 = [0.0, 0.2, 0.5, 1.0, 2.0, 5.0] * mᵩ
-    #  m3_2 = [0.0]
 
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")

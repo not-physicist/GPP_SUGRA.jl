@@ -314,8 +314,7 @@ def get_ρ_s_Trh(nm, mᵩ, aₑ, Hₑ):
     assume all inputs are in reduced planck unit
     except nm which  is nᵪ * (mᵪ / m_ϕ)
     """
-    #  return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
-    return nm
+    return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
 
 
 def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
@@ -377,8 +376,8 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     
     # add linear part for visual guidance
     if add:
-        ax.plot([0.1, 1], _power_law([0.1, 1], 1e-12, 0, 1), color="grey", ls="--", label="linear")
-        #  pass
+        #  ax.plot([0.1, 1], _power_law([0.1, 1], 1e-17, 0, 1), color="grey", ls="--", label="linear")
+        pass
 
     ax.set_xlabel(r"$m_\chi / m_\phi$")
     ax.set_ylabel(r"$\rho_\chi/(s_0 T_{\rm rh})$")
@@ -386,7 +385,7 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     ax.set_yscale("log")
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    plt.legend()
+    plt.legend(loc='lower right')
     
     out_fn = dn.replace("data", "figs") + "integrated_comp"
     if add:
@@ -418,12 +417,13 @@ def _draw_m(fn, ax):
 
 
 def plot_m_eff(dn):
+    _, _, _, a, _, _, _, _, _, _ = read_ode(dn)
     dirs, m3_2s = _get_m3_2_dir(dn + "m_eff/")
     cmap = mpl.colormaps['magma'].reversed()
 
     for (d, m) in zip(dirs, m3_2s):
         fns, ms = _get_m_fn(join(dn + "m_eff/", d))
-        fig, ax = plt.subplots()
+        fig, (ax1, ax2) = plt.subplots(ncols=2)
         
         for (x, y) in zip(fns, ms):
             data = np.load(join(dn, "m_eff/", d, x))
@@ -432,13 +432,20 @@ def plot_m_eff(dn):
             m2_R = data["m2_R"]
 
             color = cmap(y/max(ms))
-            ax.plot(τ, m2_R, c=color, label=f"$m_\chi={y:.2f}m_\phi$")
-            ax.plot(τ, m2_I, c=color, ls="--")
+            ax1.plot(τ, m2_R, c=color, label=rf"$m_\chi={y:.2f}m_\phi$")
+            ax1.plot(τ, m2_I, c=color, ls="--")
 
-        ax.set_xlabel(r"$\tau$")
-        ax.set_ylabel(r"$m^2_{\rm eff} / (a m_\phi)^2$")
-        ax.set_yscale("log")
-        plt.legend()
+            ax2.plot(τ, m2_R/a**2, c=color, label=rf"$m_\chi={y:.2f}m_\phi$")
+            ax2.plot(τ, m2_I/a**2, c=color, ls="--")
+
+        ax1.set_xlabel(r"$\tau$")
+        ax1.set_ylabel(r"$m^2_{\rm eff} / (m_\phi)^2$")
+        ax1.set_yscale("log")
+        ax2.set_xlabel(r"$\tau$")
+        ax2.set_ylabel(r"$m^2_{\rm eff} / (a m_\phi)^2$")
+        ax2.set_yscale("log")
+
+        ax1.legend()
 
         plt.savefig(dn.replace("data", "figs") + f"m2_m3_2={m:.1f}.pdf", bbox_inches="tight")
         plt.close()
@@ -450,9 +457,9 @@ if __name__ == "__main__":
     _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
     #  plot_background(dn)
     #  plot_f_m3_2(dn, sparse=0.15)
-    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
-    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
-    #  plot_m_eff(dn)
+    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
+    plot_m_eff(dn)
     
     # SmallField
     dn = "data/SmallField/"

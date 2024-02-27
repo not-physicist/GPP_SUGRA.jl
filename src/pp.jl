@@ -74,7 +74,8 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
 
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-20, save_everystep=false, maxiters=1e6)
+    sol = solve(prob, RK4(), reltol=1e-5, abstol=1e-8, save_everystep=false)
+
     #  sol = solve(prob, DP8(), dtmax=dtmax)
     #  using stiff solvers 
     #  TODO: check if the solver is ok for all the cases;
@@ -128,7 +129,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         f0s = zeros(size(mᵪ))
         ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
 
-        for (i, mᵪᵢ) in enumerate(mᵪ)
+        for (i, mᵪᵢ) in ProgressBar(enumerate(mᵪ))
             #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)

@@ -36,7 +36,7 @@ def plot_background(dn):
     out_fn = out_dn + "background.pdf"
     Path(out_dn).mkdir(parents=True, exist_ok=True)
 
-    tau, phi, phi_d,a, app_a, a_end, H_end, err, H = read_ode(dn)
+    tau, phi, phi_d,a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
 
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
@@ -140,6 +140,7 @@ def _get_m_fn(dn, sparse=1):
         _fns_R = [x for x in fns if "_R" in x][::_skip]
         _fns_I = [x for x in fns if "_I" in x][::_skip]
         if len(_fns_R) != len(_fns_I):
+            print(_fns_R, _fns_I)
             raise(ValueError("You probably want to clense the data directory and re-generate the data files."))
         #  print(_fns_R, "\n", _fns_I)
         fns = _fns_R + _fns_I
@@ -332,7 +333,6 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
         ξ_dirs, ξs = _get_xi_dn(dn_i)
         ξ_dirs_full = [join(dn, x, i) for i in ξ_dirs]
         #  print(ξ_dirs_full, ξs)
-        
 
         for ξ_dir_i in ξ_dirs_full:
             fns, fn_R, fn_I = _get_integrated_fn(ξ_dir_i)
@@ -455,11 +455,11 @@ if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
     _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
-    #  plot_background(dn)
-    #  plot_f_m3_2(dn, sparse=0.15)
-    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
-    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
-    plot_m_eff(dn)
+    plot_background(dn)
+    plot_f_m3_2(dn, sparse=0.15)
+    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
+    #  plot_m_eff(dn)
     
     # SmallField
     dn = "data/SmallField/"

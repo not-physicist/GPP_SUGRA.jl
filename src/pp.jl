@@ -74,7 +74,9 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
 
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-5, abstol=1e-8, save_everystep=false)
+    #  sol = solve(prob, RK4(), reltol=1e-6, abstol=1e-8, save_everystep=false, maxiters=1e6)
+    sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e7)
+    #  sol = solve(prob, RK4(), save_everystep=false)
 
     #  sol = solve(prob, DP8(), dtmax=dtmax)
     #  using stiff solvers 

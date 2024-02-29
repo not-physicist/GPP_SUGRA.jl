@@ -1,4 +1,6 @@
-#  include("common.jl")
+"""
+Solve background ODE in conformal time
+"""
 module ODEs
 
 using StaticArrays, OrdinaryDiffEq
@@ -40,7 +42,9 @@ function solve_ode(u₀::SVector{3, Float64},
                    dtmax::Real)
     # define and solve ODE
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    sol = solve(prob, DP8(), dtmax=dtmax)
+    #  sol = solve(prob, DP8(), dtmax=dtmax)
+    #  sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-4, abstol=1e-7)
+    sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-6, abstol=1e-8)
 
     # somehow, static array has weirdness in indexing...
     τ = sol.t

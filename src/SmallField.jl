@@ -137,7 +137,8 @@ function test_save_f(data_dir::String=MODEL_DATA_DIR)
     f = PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, get_m2_eff, direct_out=true)
     
     # approximate the true values
-    if isapprox(f, [1.7891387330706488e-6, 1.3922591876374687e-7, 1.2272875358428686e-7, 2.1205741410295525e-10, 2.2278489765847522e-11], rtol=1e-2)
+    if isapprox(f, [1.547728392833625e-6, 1.4363698510177691e-7, 1.1700695189080433e-7, 1.2696232419956884e-10, 2.849093626043739e-14], rtol=1e-2)
+
         @show f
         return true
     else

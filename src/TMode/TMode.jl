@@ -11,7 +11,7 @@ using ..ODEs
 using ..Commons
 using ..PPs
 
-using StaticArrays, NPZ
+using StaticArrays, NPZ, JLD2
 
 # global constant
 const MODEL_NAME="TMode"
@@ -80,14 +80,15 @@ get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode
 get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 
 
-function save_ode(data_dir::String=MODEL_DATA_DIR)
+function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
 
-    model = TMode(1, 0.965, 0.001)
+    model = TMode(1, 0.965, r, ϕᵢ)
     @show model
+    save_model_data(model, data_dir * "model.dat")
 
     # initial conditions
-    ϕᵢ = 1.75 * model.ϕₑ
+    ϕᵢ *= model.ϕₑ
     dϕᵢ = get_dϕ_SR(ϕᵢ, model)
     u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
     τᵢ = - 1 / get_Hinf(model)
@@ -99,12 +100,13 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
     p = (_V, _dV)
     
     τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 10)
-
+    
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
     τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)    
     
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
+    #  save(data_dir * "ode.jld2", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     return true
 end
 
@@ -130,18 +132,17 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
     end
 end
 
-function save_f(data_dir::String=MODEL_DATA_DIR)
-    model = TMode(1, 0.965, 0.001)
+function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
+                num_mᵪ::Int=10, num_m32::Int=5, num_k::Int=100)
+    model = TMode(1, 0.965, r, NaN)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-2, 2, 100) * ode.aₑ * model.mᵩ
-    #  mᵪ = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0] .* mᵩ
-    mᵪ =  logspace(-1.3, 0.7, 20).* mᵩ
+    k = logspace(-2, 2, num_k) * ode.aₑ * model.mᵩ
+    mᵪ =  logspace(-1.3, 0.7, num_mᵪ).* mᵩ
 
     ξ = [0.0]
-    #  m3_2 = [0.0, 0.2, 0.5, 1.0, 2.0, 5.0] * mᵩ
-    m3_2 = [0.0, 0.2, 0.5, 1.0, 2.0] * mᵩ
+    m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
 
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
@@ -152,7 +153,7 @@ function save_f(data_dir::String=MODEL_DATA_DIR)
 end
 
 function test_save_f(data_dir::String=MODEL_DATA_DIR)
-    model = ModelDatas.TMode(1, 0.965, 0.001)
+    model = ModelDatas.TMode(1, 0.965, 0.001, 1.7)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 

@@ -5,7 +5,7 @@ module ModelDatas
 
 using ...Commons
 
-export TMode
+export TMode, save_model_data
 
 struct TMode{T<:Real, N<:Int}
     n::N
@@ -18,8 +18,11 @@ struct TMode{T<:Real, N<:Int}
     ϕ_cmb::T  # field value at cmb pivot scale
     ϕₑ::T  # field value at the end of slow-roll inflation
     mᵩ::T
+
+    # parameter for ODE solver 
+    ϕᵢ::T
 end
-TMode(n, nₛ, r) = TMode(n, nₛ, r, get_derived(n, nₛ, r)...)
+TMode(n, nₛ, r, ϕᵢ) = TMode(n, nₛ, r, get_derived(n, nₛ, r)..., ϕᵢ)
 
 """
 compute field value corresponding to the CMB pivot scale 
@@ -113,4 +116,12 @@ function test_ϕₑ()
     end
 end
 
+"""
+save n, ns, r into plain text; just for reference, accuracy not that important
+"""
+function save_model_data(model::TMode, fn::String)
+    io = open(fn, "w")
+    write(io, "n=$(model.n)\nn_s=$(model.nₛ)\nr=$(model.r)\nphi_i=$(model.ϕᵢ)")
+    close(io)
+end
 end

@@ -6,6 +6,8 @@ from os import listdir
 from os.path import isdir, isfile, join
 from glob import glob
 from pathlib import Path
+from scipy.optimize import curve_fit
+import shutil
 
 from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
@@ -27,6 +29,9 @@ def read_ode(dn):
     err = data["err"]
     H = data["H"]
     mᵩ = data["m_phi"]
+
+    #  print(tau[1:100], tau[-100:-1])
+
     return tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ
 
 
@@ -47,6 +52,8 @@ def plot_background(dn):
 
     ax[0, 0].set_xlabel("$\eta$")
     ax[0, 0].set_ylabel("$\phi$")
+    #  ax[0, 0].set_xlim((0, 2e4))
+    #  ax[0, 0].set_ylim((-0.01, 0.01))
 
     ax[0, 1].plot(tau, a, c="k")
     ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
@@ -318,15 +325,25 @@ def get_ρ_s_Trh(nm, mᵩ, aₑ, Hₑ):
     return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
 
 
+def linear_f(x, a):
+    return a*x
+
+def inverse_f(x, a, b):
+    return a * x + b
+
 def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
     """
     dirs, m3_2s = _get_m3_2_dir(dn, exclude=DIR_TO_EXCLUDE)
+    m3_2s = np.array(m3_2s)
 
     fig, ax = plt.subplots()
     cmap = mpl.colormaps['viridis'].reversed()
+
+    slopes = np.array([])
+    err_slopes = np.array([])
 
     for (x, y) in zip(dirs, m3_2s):
         dn_i = dn + x + "/"
@@ -348,12 +365,20 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
                     m_I, rho_I = _get_n(fn_I)
                     if np.array_equal(m_R, m_I):
                         m = m_R
-                        #  rho = rho_R + rho_I
                         ρ_s_T = get_ρ_s_Trh(rho_R + rho_I, mᵩ, aₑ, Hₑ)
 
                         color = cmap(y/max(m3_2s))
                         label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
                         ax.plot(m, ρ_s_T, color=color, label=label)
+
+                        #  trying to fit the first part
+                        popt, pcov = curve_fit(linear_f, m[:5], ρ_s_T[:5])
+                        perr = np.sqrt(np.diag(pcov))
+                        #  print(y, popt, perr)
+                        slopes = np.append(slopes, popt[0])
+                        err_slopes = np.append(err_slopes, perr[0])
+
+                        ax.plot(m, linear_f(m, *popt), alpha=0.5, color=color, ls="--")
                     else:
                         raise(ValueError("Something went wrong!"))
             else:
@@ -383,6 +408,8 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     ax.set_ylabel(r"$\rho_\chi/(s_0 T_{\rm rh})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
+    #  ax.set_xlim((0.05, 0.1))
+    #  ax.set_ylim((3e-14, 5e-14))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.legend(loc='lower right')
@@ -393,6 +420,18 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
     out_fn += ".pdf"
 
     plt.savefig(out_fn, bbox_inches="tight")
+    plt.close()
+
+    print("Data are", m3_2s, slopes, err_slopes)
+    popt, perr = curve_fit(lambda x, a, b: a*x+b, m3_2s, slopes, sigma=err_slopes, absolute_sigma=True)
+    print(popt, perr)
+    print("Fitted:", m3_2s, inverse_f(m3_2s, *popt))
+    fig, ax = plt.subplots()
+
+    ax.plot(m3_2s, slopes, c="k", ls="-")
+    ax.plot(m3_2s, inverse_f(m3_2s, *popt), c="k", ls="--")
+
+    plt.savefig(out_fn.replace("comp", "slope"), bbox_inches="tight")
     plt.close()
 
 #####################################################################################
@@ -451,14 +490,22 @@ def plot_m_eff(dn):
         plt.close()
 
 
+def cp_model_data(dn):
+    Path(dn.replace("data", "figs")).mkdir(parents=True, exist_ok=True)
+    src = dn+"model.dat"
+    dest = src.replace("data", "figs")
+    shutil.copy(src, dest)
+
+
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
     _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
+    cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.15)
+    plot_f_m3_2(dn, sparse=0.25)
     plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
-    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
+    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     
     # SmallField

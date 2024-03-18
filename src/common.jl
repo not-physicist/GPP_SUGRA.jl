@@ -3,7 +3,7 @@ Some convenient function to share among files/modules
 """
 module Commons
 
-using NPZ, Interpolations
+using NPZ, Interpolations, JLD2, NumericalIntegration
 
 export logspace, read_ode, ODEData, get_end
 
@@ -36,9 +36,12 @@ end
 read ODE solution stored in data/ode.npz
 """
 function read_ode(data_dir::String)
-    fn = data_dir * "ode.npz"
     # maybe a try catch clause here; not sure if necessary
+    fn = data_dir * "ode.npz"
     data = npzread(fn)
+    #  fn = data_dir * "ode.jld2"
+    #  data = load(fn)
+
     τ = data["tau"]
     ϕ = data["phi"]
     dϕ = data["phi_d"]
@@ -84,5 +87,10 @@ function get_end(ϕ::Vector, dϕ::Vector, a::Vector, τ::Vector, ϕₑ::Real)
     return τₑ, aₑ
 end
 
+
+function get_t(τ::Vector, a::Vector)
+    t = cumul_integrate(τ, a)
+    return t
+end
 
 end

@@ -99,7 +99,7 @@ function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 10)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = ODEs.solve_ode(u₀, tspan, p, 10)
     
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
     τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)    

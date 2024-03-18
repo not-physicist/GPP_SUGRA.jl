@@ -1,6 +1,7 @@
 module PPs
 
-using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations, Folds, ProgressBars
+using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, Interpolations, ProgressBars, LinearInterpolations
+#  using JLD2
 #  using Infiltritor
 
 using ..Commons
@@ -11,6 +12,8 @@ mᵩ: mass of inflaton
 mᵪ: mass of the produced particle
 
 One is responsible to make sure ode.τ and m2_eff has the same dimension. Now ode data isshould be automatically trimmed.
+
+LinearInterpolations uses ~ half as much as memories, a bit faster also.
 """
 function init_func(k::Real, ode::ODEData, m2_eff::Vector)
     τ = ode.τ
@@ -22,24 +25,23 @@ function init_func(k::Real, ode::ODEData, m2_eff::Vector)
     t_span = [τ[1], τ[end-2]]
     
     # get sampled ω values and interpolate
-    mₑ² = m2_eff
-    ω² = k^2 .+ mₑ²
-    ω = (ω²).^(1/2)
-    
-    #  @show size(τ), size(ω)
+    ω = (k^2 .+ m2_eff).^(1/2)
 
     # try linear interpolation first
-    get_ω = interpolate((τ,), ω, Gridded(Linear()))
+    #  get_ω = Interpolations.interpolate((τ,), ω, Gridded(Linear()))
+    get_ω = LinearInterpolations.Interpolate(τ, ω)
 
     #  a simple consistency check
     #  @show "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
 
     dω = diff(ω) ./ diff(τ) 
-    get_dω = interpolate((τ[1:end-1],), dω, Gridded(Linear()))
+    #  get_dω = Interpolations.interpolate((τ[1:end-1],), dω, Gridded(Linear()))
+    get_dω = LinearInterpolations.Interpolate(τ[1:end-1], dω)
     
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
-    get_Ω = interpolate((τ,), Ω, Gridded(Linear()))
+    #  get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
+    get_Ω = LinearInterpolations.Interpolate(τ, Ω)
 
     return get_ω, get_dω, get_Ω, t_span
 end
@@ -74,22 +76,29 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
 
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    #  sol = solve(prob, RK4(), reltol=1e-6, abstol=1e-8, save_everystep=false, maxiters=1e6)
     sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e7)
-    #  sol = solve(prob, RK4(), save_everystep=false)
 
-    #  sol = solve(prob, DP8(), dtmax=dtmax)
-    #  using stiff solvers 
-    #  TODO: check if the solver is ok for all the cases;
-    #  TODO: check the behaviour of save_everystep option
-    #  sol = solve(prob, AutoTsit5(Rosenbrock23(autodiff=false)), save_everystep=false, maxiters=1e7, reltol=1e-20)
-
-    f = abs(sol.u[end][2])^2
-    max_err = maximum([abs(abs(x[1])^2 - abs(x[2])^2 - 1) for x in sol.u])
-    #  @show f, max_err
+    res = sol.u[end]
+    f = abs(res[2])^2
+    max_err = abs(abs(res[1])^2 - abs(res[2])^2 - 1) 
 
     return f, max_err
 end 
+
+function solve_diff(k::Vector, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
+    f = zeros(size(k)) 
+    err = zeros(size(k)) 
+    #  @show f, err
+    
+    Threads.@threads for i in 1:length(k)
+        res = solve_diff(k[i], ode, m2_eff, dtmax)
+        #  @show typeof(res), res
+        f[i] = res[1]
+        err[i] = res[2]
+    end
+    
+    return f, err
+end
 
 """
 compute comoving energy (a⁴ρ) given k, m2, and f arrays
@@ -132,44 +141,33 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
 
         for (i, mᵪᵢ) in ProgressBar(enumerate(mᵪ))
-            #  @printf "ξ = %f, mᵪ = %f \t" ξᵢ mᵪ_i/mᵩ
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
-            #  @show m2_eff[1:10000:end]
             
-            # Folds.collect is the multi-threaded version of collect
-            #  res = @time Folds.collect(solve_diff(x, ode, m2_eff, dtmax) for x in k)
-            res = Folds.collect(solve_diff(x, ode, m2_eff, dtmax) for x in k)
-            # maybe some optimization is possible here...
-            f = [x[1] for x in res]
-            err = [x[2] for x in res]
-            #  @infiltrate
+            f, err = solve_diff(k, ode, m2_eff, dtmax)
             
             # take the ρ at the end, use last m2_eff
             ρs[i] = get_com_energy(k, f, m2_eff[end])
             ns[i] = get_com_number(k, f)
             f0s[i] = f[1]
-            #  @show ρs[i]
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
-                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz", 
+                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz",
                          Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
+                #  save("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz",
+                         #  Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
             end
         end
         # k is in planck unit
         # want ρ and n in planck unit as well
         # add all other factors in the plotting
-        npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz", 
+        npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz",
                  Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
-        #=
-        # in (aₑ mᵩ) unit
-        npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz", 
-                 Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs./ (ode.aₑ * mᵩ)^4, 
-                      "n"=>ns ./ (ode.aₑ * mᵩ)^3))
-        =#
+        #  save("$(ξ_dirᵢ)integrated$fn_suffix.jld2",
+                 #  Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
     end
 end
 

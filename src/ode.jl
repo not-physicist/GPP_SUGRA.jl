@@ -41,17 +41,29 @@ function solve_ode(u₀::SVector{3, Float64},
                    p::Tuple{Function, Function},
                    dtmax::Real)
     # define and solve ODE
-    prob = ODEProblem(friedmann_eq, u₀, tspan, p)
+    
+    # split up ODE solving to non-oscillatory and oscillatory
+    # roughly to ϕₑ
+    prob = ODEProblem(friedmann_eq, u₀, [tspan[1], 0.0], p)
     #  sol = solve(prob, DP8(), dtmax=dtmax)
+    #  sol = solve(prob, RK4(), maxiters=1e8)
     #  sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-4, abstol=1e-7)
-    sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-6, abstol=1e-8)
+    #  sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-6, abstol=1e-8)
+    sol = @time solve(prob, RK4(), maxiters=1e8, reltol=1e-6, abstol=1e-8)
+    
+    u₀_new = SA[sol.u[end]...]
+    #  @show typeof(u₀_new) typeof(u₀)
+    prob2 = ODEProblem(friedmann_eq, u₀_new, [0.0, tspan[2]], p)
+    sol2 = @time solve(prob2, RK4(), maxiters=1e8, reltol=1e-7, abstol=1e-9, save_start=false)
 
     # somehow, static array has weirdness in indexing...
-    τ = sol.t
-    ϕ = [x[1] for x in sol.u]
-    dϕ = [x[2] for x in sol.u]
-    a = [x[3] for x in sol.u]
-    #  ap = Commons.diff(τ, a)
+    τ = vcat(sol.t, sol2.t)
+    ϕ = vcat([x[1] for x in sol.u], [x[1] for x in sol2.u])
+    dϕ = vcat([x[2] for x in sol.u], [x[2] for x in sol2.u])
+    a = vcat([x[3] for x in sol.u], [x[3] for x in sol2.u])
+    #  dϕ = [x[2] for x in sol.u]
+    #  a = [x[3] for x in sol.u]
+    
     ap = diff(a) ./ diff(τ) 
     #  app = Commons.diff(τ[1:end-1], ap)
     app = diff(ap) ./ diff(τ[1:end-1]) 

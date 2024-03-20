@@ -11,15 +11,13 @@ using ..ODEs
 using ..Commons
 using ..PPs
 
-using StaticArrays, NPZ, JLD2
+using StaticArrays, NPZ
+# using JLD2
 
 # global constant
 const MODEL_NAME="TMode"
 const MODEL_DATA_DIR="data/$MODEL_NAME/"
 
-"""
-the f-function in superpotential
-"""
 function get_V(ϕ::Real, model::TMode)
     x = ϕ / (sqrt(6) * model.α)
     return model.V₀ * tanh(x)^(2*model.n)
@@ -30,7 +28,10 @@ function get_dV(ϕ::Real, model::TMode)
     return sqrt(2/3) / model.α * model.V₀ * sech(x)^2 * tanh(x)^(2*model.n-1)
 end
 
-function get_dϕ_SR(ϕ::Real, model::TMode, a::Real=1)
+"""
+dϕ = dϕ/dτ at slow roll trajectory in conformal time
+"""
+function get_dϕ_SR(ϕ::Real, model::TMode, a::Real=1.0)
     return - a * get_dV(ϕ, model) / sqrt(3 * get_V(ϕ, model))
 end
 
@@ -90,6 +91,8 @@ function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     # initial conditions
     ϕᵢ *= model.ϕₑ
     dϕᵢ = get_dϕ_SR(ϕᵢ, model)
+    @show ϕᵢ, dϕᵢ
+    #  dϕᵢ *= 50
     u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
     τᵢ = - 1 / get_Hinf(model)
     tspan = (τᵢ, -τᵢ)
@@ -101,6 +104,9 @@ function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     
     τ, ϕ, dϕ, a, ap, app, app_a, H, err = ODEs.solve_ode(u₀, tspan, p, 10)
     
+    #  dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
+    #  @show (dH ./ (H .^ 2) )[1:100]
+
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
     τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)    
     
@@ -108,6 +114,36 @@ function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     #  save(data_dir * "ode.jld2", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     return true
+end
+
+function test_ode(data_dir::String=MODEL_DATA_DIR)
+    mkpath(data_dir)
+    
+    r = 0.001
+    ϕᵢ = 1.7
+    model = TMode(1, 0.965, r, ϕᵢ)
+    @show model
+    save_model_data(model, data_dir * "model.dat")
+    
+    ϕᵢ *=  model.ϕₑ
+    Hᵢ = sqrt(get_V(ϕᵢ, model) / 3.0)
+    # initial dϕdt = dϕdτ
+    dϕᵢ = get_dϕ_SR(ϕᵢ, model) / Hᵢ
+    #  @show ϕᵢ, dϕᵢ
+    u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
+
+    # parameters
+    _V(x) = get_V(x, model)
+    _dV(x) = get_dV(x, model)
+    p = (_V, _dV)
+    
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = ODEs.solve_ode_efold(u₀, p)
+    dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
+    @show (-dH ./ (H .^ 2) )[1:50:end]
+
+    mkpath(data_dir)
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))
+
 end
 
 function save_m_eff(data_dir::String=MODEL_DATA_DIR)
@@ -172,6 +208,23 @@ function test_save_f(data_dir::String=MODEL_DATA_DIR)
         @show f
         return false
     end
+end
+
+function test_efold(data_dir::String=MODEL_DATA_DIR)
+    r = 0.001
+    model = TMode(1, 0.965, r, NaN)
+    #  @show get_Hinf(model)
+
+    ode = read_ode(data_dir)
+    #  @show ode.H[1:10]
+    dH = diff(ode.H) ./ diff(ode.τ) ./ ode.a[1:end-1]
+    dϕdt = ode.dϕ ./ ode.a
+    @show dH[1:10] (dϕdt .^ 2 ./ (-2))[1:10]
+
+    
+    #  ϵ₁ = Commons.get_ϵ₁(ode)
+    #  @show ϵ₁[1:100]
+    return true
 end
 
 end

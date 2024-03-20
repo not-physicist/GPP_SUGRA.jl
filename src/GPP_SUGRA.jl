@@ -8,7 +8,7 @@ export TModes
 
 include("common.jl")
 include("pp.jl")
-include("ode.jl")
+include("eom/eom.jl")
 
 include("SmallField.jl")
 using .SmallFields

@@ -7,7 +7,7 @@ module TModes
 include("ModelData.jl")
 using .ModelDatas
 
-using ..ODEs
+using ..EOMs
 using ..Commons
 using ..PPs
 
@@ -137,9 +137,9 @@ function test_ode(data_dir::String=MODEL_DATA_DIR)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = ODEs.solve_ode_efold(u₀, p)
-    dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
-    @show (-dH ./ (H .^ 2) )[1:50:end]
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_ode(u₀, p)
+    #  dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
+    #  @show (-dH ./ (H .^ 2) )[1:50:end]
 
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))

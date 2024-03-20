@@ -503,8 +503,8 @@ if __name__ == "__main__":
     _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
     cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.25)
-    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    #  plot_f_m3_2(dn, sparse=0.25)
+    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

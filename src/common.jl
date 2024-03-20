@@ -3,9 +3,10 @@ Some convenient function to share among files/modules
 """
 module Commons
 
-using NPZ, Interpolations, JLD2, NumericalIntegration
+using NPZ, NumericalIntegration, LinearInterpolations
+# using Interpolations, JLD2
 
-export logspace, read_ode, ODEData, get_end
+export logspace, read_ode, ODEData, get_end, LinearInterpolations
 
 """
 returns an array whose elements are even spaced on logarithmic scale
@@ -30,7 +31,6 @@ struct ODEData{V<:Vector, F<:Real}
     aₑ::F
     Hₑ::F
 end
-
 
 """
 read ODE solution stored in data/ode.npz
@@ -76,13 +76,13 @@ function get_end(ϕ::Vector, dϕ::Vector, a::Vector, τ::Vector, ϕₑ::Real)
     
     # depending small/large field model, the field value array can be descending or ascending
     try
-        itp = interpolate((ϕ[mask],), τ[mask], Gridded(Linear()))
+        itp = LinearInterpolations.Interpolate((ϕ[mask],), τ[mask])
     catch
-        itp = interpolate((reverse(ϕ[mask]),), reverse(τ[mask]), Gridded(Linear()))
+        itp = LinearInterpolations.Interpolate((reverse(ϕ[mask]),), reverse(τ[mask]))
     end
     τₑ = itp(ϕₑ)
     
-    itp = interpolate((τ[mask],), a[mask], Gridded(Linear()))
+    itp = LinearInterpolations.Interpolate((τ[mask],), a[mask])
     aₑ = itp(τₑ)
     return τₑ, aₑ
 end
@@ -91,6 +91,12 @@ end
 function get_t(τ::Vector, a::Vector)
     t = cumul_integrate(τ, a)
     return t
+end
+
+function get_ϵ₁(ode::ODEData)
+    dH = diff(ode.H) ./ diff(ode.τ) ./ ode.a[1:end-1]
+    return - dH ./ ode.H[1:end-1] .^ 2
+    #  return 1 / 2  * (ode.dϕ ./ ode.H ./ ode.a ).^ 2
 end
 
 end

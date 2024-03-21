@@ -4,5 +4,6 @@
 
 ## TODO
 
-- (Try to) Use number of efolds as time variable for inflation
-- Improve memory allocation for init_func in pp.jl: interpolate m and dm for all k
+- ~~(Try to) Use number of efolds as time variable for inflation~~
+- ~~Improve memory allocation for init_func in pp.jl: interpolate m and dm for all k~~
+- Maybe one can have better performance in pp.jl

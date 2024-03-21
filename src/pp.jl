@@ -7,6 +7,9 @@ using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, Lin
 
 using ..Commons
 
+# type of interpolator...
+const INTERPOLATOR_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
+
 """
 get ω functions ready from ODE solution
 mᵩ: mass of inflaton 
@@ -16,35 +19,15 @@ One is responsible to make sure ode.τ and m2_eff has the same dimension. Now od
 
 LinearInterpolations uses ~ half as much as memories, a bit faster also.
 """
-function init_func(k::Real, ode::ODEData, m2_eff::Vector)
-    τ = ode.τ
-
-    # NOTE: don't take the last element as upper bound of the integration;
-    # since the derivatives "sacrifies" some elements
-    # otherwise problematic with the ODE solver
-    # and possibly outside of the interpolation range
-    t_span = [τ[1], τ[end-2]]
-    
+function init_Ω(k::Real, ode::ODEData, m2::INTERPOLATOR_TYPE)
     # get sampled ω values and interpolate
-    ω = (k^2 .+ m2_eff).^(1/2)
-
-    # try linear interpolation first
-    #  get_ω = Interpolations.interpolate((τ,), ω, Gridded(Linear()))
-    get_ω = LinearInterpolations.Interpolate(τ, ω)
-
-    #  a simple consistency check
-    #  @show "original: %f, interpolated: %f" ω[1] get_ω(τ[1])
-
-    dω = diff(ω) ./ diff(τ) 
-    #  get_dω = Interpolations.interpolate((τ[1:end-1],), dω, Gridded(Linear()))
-    get_dω = LinearInterpolations.Interpolate(τ[1:end-1], dω)
-    
+    # TODO: maybe one can pass m2 vector instead of interpolator; maybe faster
+    ω = (k^2 .+ m2.(ode.τ)).^(1/2)
     # cumulative integration
-    Ω = cumul_integrate(τ, ω)
-    #  get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
-    get_Ω = LinearInterpolations.Interpolate(τ, Ω)
+    Ω = cumul_integrate(ode.τ, ω)
+    get_Ω = LinearInterpolations.Interpolate(ode.τ, Ω)
 
-    return get_ω, get_dω, get_Ω, t_span
+    return get_Ω
 end
 
 """
@@ -69,9 +52,13 @@ Solve the differential equations for GPP
 dtmax not used, but keep just in case
 NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
-    ω, dω, Ω, t_span = init_func(k, ode, m2_eff)
-    p = SA[ω, dω, Ω]
+function solve_diff(k::Real, ode::ODEData, m2::INTERPOLATOR_TYPE, dm2::INTERPOLATOR_TYPE)
+    Ω = init_Ω(k, ode, m2)
+    ω = x -> sqrt(k^2 + m2(x))
+    dω = x -> dm2(x) / (2*ω(x))
+    #  @show typeof(ω) typeof(dω) typeof(Ω)
+    p = (ω, dω, Ω)
+    t_span = [ode.τ[1], ode.τ[end-2]]
 
     u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
 
@@ -86,13 +73,12 @@ function solve_diff(k::Real, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
     return f, max_err
 end 
 
-function solve_diff(k::Vector, ode::ODEData, m2_eff::Vector, dtmax::Real=false)
+function solve_diff(k::Vector, ode::ODEData, m2::INTERPOLATOR_TYPE, dm2::INTERPOLATOR_TYPE)
     f = zeros(size(k)) 
     err = zeros(size(k)) 
-    #  @show f, err
     
     Threads.@threads for i in 1:length(k)
-        res = solve_diff(k[i], ode, m2_eff, dtmax)
+        res = solve_diff(k[i], ode, m2, dm2)
         #  @show typeof(res), res
         f[i] = res[1]
         err[i] = res[2]
@@ -129,26 +115,28 @@ results data structure:
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
                    k::Vector, mᵪ::Vector, ξ::Vector, 
                    get_m2_eff::Function;
-                   dtmax::Real=false, 
                    direct_out::Bool=false,
                    fn_suffix::String="")
-    #  println("Computing spectra using ", Threads.nthreads(), " cores")
-
     # interate over the model parameters
     for ξᵢ in ξ
         ρs = zeros(size(mᵪ))
         ns = zeros(size(mᵪ))
         f0s = zeros(size(mᵪ))
         ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
-
-        for (i, mᵪᵢ) in ProgressBar(enumerate(mᵪ))
+        
+        iter = ProgressBar(enumerate(mᵪ))
+        for (i, mᵪᵢ) in iter
+            set_description(iter, string(@sprintf("mᵪ:%.2f", mᵪᵢ)))
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
+            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
+            # dm2 = d(m^2)/dτ
+            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
             
-            f, err = solve_diff(k, ode, m2_eff, dtmax)
+            f, err = solve_diff(k, ode, get_m2, get_dm2)
             
             # take the ρ at the end, use last m2_eff
-            ρs[i] = get_com_energy(k, f, m2_eff[end])
+            ρs[i] = get_com_energy(k, f, m2_eff[end-2])
             ns[i] = get_com_number(k, f)
             f0s[i] = f[1]
 
@@ -158,8 +146,6 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 mkpath(ξ_dirᵢ)
                 npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz",
                          Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
-                #  save("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz",
-                         #  Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
             end
         end
         # k is in planck unit
@@ -167,8 +153,6 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         # add all other factors in the plotting
         npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz",
                  Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
-        #  save("$(ξ_dirᵢ)integrated$fn_suffix.jld2",
-                 #  Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
     end
 end
 
@@ -184,14 +168,15 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    k::Vector, mᵪ::Vector, ξ::Vector, 
                    m3_2::Vector,
                    get_m2_eff::Function;
-                   dtmax::Real=false, 
                    direct_out::Bool=false,
                    fn_suffix::String="")
-    for x in ProgressBar(m3_2)
+    iter = ProgressBar(m3_2)
+    for x in iter
+        set_description(iter, string(@sprintf("m_32:%.2f", x)))
         m3_2_dir = data_dir * "m3_2=$(x/mᵩ)/"
         m2_eff_R(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
         save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff_R, 
-                  dtmax=dtmax, direct_out=direct_out, fn_suffix=fn_suffix)
+                  direct_out=direct_out, fn_suffix=fn_suffix)
     end
 end
 

@@ -164,6 +164,7 @@ end
 function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
                 num_mᵪ::Int=10, num_m32::Int=5, num_k::Int=100)
     model = TMode(1, 0.965, r, NaN)
+    @info dump_struct(model)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
@@ -180,6 +181,8 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
     return true
 end
+save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10)
+save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100)
 
 function test_save_f(data_dir::String=MODEL_DATA_DIR)
     model = ModelDatas.TMode(1, 0.965, 0.001, 1.7)
@@ -202,22 +205,4 @@ function test_save_f(data_dir::String=MODEL_DATA_DIR)
         return false
     end
 end
-
-function test_efold(data_dir::String=MODEL_DATA_DIR)
-    r = 0.001
-    model = TMode(1, 0.965, r, NaN)
-    #  @show get_Hinf(model)
-
-    ode = read_ode(data_dir)
-    #  @show ode.H[1:10]
-    dH = diff(ode.H) ./ diff(ode.τ) ./ ode.a[1:end-1]
-    dϕdt = ode.dϕ ./ ode.a
-    @show dH[1:10] (dϕdt .^ 2 ./ (-2))[1:10]
-
-    
-    #  ϵ₁ = Commons.get_ϵ₁(ode)
-    #  @show ϵ₁[1:100]
-    return true
-end
-
 end

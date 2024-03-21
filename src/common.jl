@@ -6,7 +6,7 @@ module Commons
 using NPZ, NumericalIntegration, LinearInterpolations
 # using Interpolations, JLD2
 
-export logspace, read_ode, ODEData, get_end, LinearInterpolations
+export logspace, read_ode, ODEData, get_end, LinearInterpolations, dump_struct
 
 """
 returns an array whose elements are even spaced on logarithmic scale
@@ -97,6 +97,17 @@ function get_ϵ₁(ode::ODEData)
     dH = diff(ode.H) ./ diff(ode.τ) ./ ode.a[1:end-1]
     return - dH ./ ode.H[1:end-1] .^ 2
     #  return 1 / 2  * (ode.dϕ ./ ode.H ./ ode.a ).^ 2
+end
+
+"""
+Simple dump for struct, but instead of output to stdout, return a string for Logging
+"""
+function dump_struct(s)
+    out = "Fields of $(typeof(s)): \n"
+    for i in fieldnames(typeof(s))
+        out *= "$i" * " = " * string(getfield(s, i)) * "\n"
+    end
+    return out
 end
 
 end

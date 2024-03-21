@@ -74,6 +74,8 @@ def plot_background(dn):
     ax[1, 0].set_xlabel("$\eta$")
     ax[1, 0].set_ylabel("$H$")
     ax[1, 0].set_yscale("log")
+    #  ax[1, 0].set_xlim((tau[0], 0))
+    #  ax[1, 0].set_ylim((1e-6, 4e-6))
 
     ax[1, 1].plot(tau, a, c="k")
     ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")

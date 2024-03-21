@@ -3,7 +3,7 @@ Solving EOM in number of efolds
 """
 module EFolds
 
-using StaticArrays, OrdinaryDiffEq, NumericalIntegration
+using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging
 
 #  using ..Helpers: get_others
 
@@ -54,19 +54,13 @@ function solve_eom(u₀::SVector{3, Float64},
 
     # the last two element seems to be duplicate; something to do with the termination
     N, ϕ, dϕdN, a = N[1:end-1], ϕ[1:end-1], dϕdN[1:end-1], a[1:end-1]
-    println("Number of efolds in inflation: $(N[end] - N[1])")
+    @info "Number of efolds in inflation: $(N[end] - N[1])"
     
     # due to numerical nature, very small negative number can be produced for H^2
     H = sqrt.(max.(0, get_H2.(ϕ, dϕdN, p[1])))
     τ = cumul_integrate(N, 1 ./ (a .* H))
     dϕdτ = a .* H .* dϕdN
-    #  @show H[1:5:100]
-    #  @show (diff(H)/diff(τ))[1:10]
     
-    ap = diff(a) ./ diff(τ)
-    H_τ = ap ./ (a[1:end-1] .^2)
-    #  @show H_τ[1:5:100]
-
-    return τ, ϕ, dϕdτ, a
+    return τ, ϕ, dϕdτ, a, a[end], H[end]
 end
 end

@@ -11,7 +11,7 @@ using ..EOMs
 using ..Commons
 using ..PPs
 
-using StaticArrays, NPZ
+using StaticArrays, NPZ, Logging
 # using JLD2
 
 # global constant
@@ -85,14 +85,14 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     mkpath(data_dir)
 
     model = TMode(1, 0.965, r, ϕᵢ)
-    @show model
+    @info dump_struct(model)
+    #  @info model
     save_model_data(model, data_dir * "model.dat")
 
     # initial conditions
     ϕᵢ *= model.ϕₑ
     dϕᵢ = get_dϕ_SR(ϕᵢ, model)
-    @show ϕᵢ, dϕᵢ
-    #  dϕᵢ *= 50
+    @debug ϕᵢ, dϕᵢ
     u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
     #  τᵢ = - 1 / get_Hinf(model)
     #  tspan = (τᵢ, -τᵢ)
@@ -102,20 +102,14 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_eom(u₀, p)
-    
-    #  dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
-    #  @show (dH ./ (H .^ 2) )[1:100]
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
 
-    #  τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)
-    #  τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)
-    τₑ, aₑ, Hₑ = τ[1], a[1], H[1]
-    
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     return true
 end
 
+#=
 function test_ode(data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
     
@@ -143,6 +137,7 @@ function test_ode(data_dir::String=MODEL_DATA_DIR)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))
 
 end
+=#
 
 function save_m_eff(data_dir::String=MODEL_DATA_DIR)
     model = TMode(1, 0.965, 0.001)

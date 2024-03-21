@@ -81,7 +81,7 @@ get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode
 get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 
 
-function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR)
+function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR)
     mkpath(data_dir)
 
     model = TMode(1, 0.965, r, ϕᵢ)
@@ -94,25 +94,25 @@ function save_ode(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     @show ϕᵢ, dϕᵢ
     #  dϕᵢ *= 50
     u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
-    τᵢ = - 1 / get_Hinf(model)
-    tspan = (τᵢ, -τᵢ)
+    #  τᵢ = - 1 / get_Hinf(model)
+    #  tspan = (τᵢ, -τᵢ)
 
     # parameters
     _V(x) = get_V(x, model)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = ODEs.solve_ode(u₀, tspan, p, 10)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_eom(u₀, p)
     
     #  dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
     #  @show (dH ./ (H .^ 2) )[1:100]
 
-    τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)    
-    τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)    
+    #  τₑ, aₑ = get_end(ϕ, dϕ, a, τ, model.ϕₑ)
+    #  τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, model.ϕₑ)
+    τₑ, aₑ, Hₑ = τ[1], a[1], H[1]
     
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
-    #  save(data_dir * "ode.jld2", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
     return true
 end
 
@@ -137,9 +137,7 @@ function test_ode(data_dir::String=MODEL_DATA_DIR)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_ode(u₀, p)
-    #  dH = app ./ a .^ 3 .- 2 .* (ap ./ a) .^ 2 ./ a .^ 2
-    #  @show (-dH ./ (H .^ 2) )[1:50:end]
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_eom(u₀, p)
 
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))

@@ -5,7 +5,7 @@ module Conformals
 
 using StaticArrays, OrdinaryDiffEq
 
-using ..Helpers: get_others
+#  using ..Helpers: get_others
 
 """
 the friedman equation written in conformal time
@@ -30,7 +30,7 @@ end
 """
 solve ODE given the parameters and initial conditions
 """
-function solve_ode(u₀::SVector{3, Float64}, 
+function solve_eom(u₀::SVector{3, Float64}, 
                    tspan::Tuple{Float64, Float64}, 
                    p::Tuple{Function, Function})
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)

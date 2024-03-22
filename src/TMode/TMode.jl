@@ -46,9 +46,9 @@ end
 the f-function in super potential
 """
 function get_f(ϕ::Vector, model::TMode, m3_2::Real)
-    x = ϕ ./ (sqrt(6 * model.α))
+    x = @. ϕ / (sqrt(6 * model.α))
     if model.n == 1
-        return sqrt(3*model.α*model.V₀) .* log.(cosh.(x)) .+ m3_2/sqrt(3)
+        return @. sqrt(3*model.α*model.V₀) * log(cosh(x)) + m3_2/sqrt(3)
     else
         throw(ArgumentError("n=$(model.n) is yet to be implemented!"))
     end
@@ -62,7 +62,7 @@ function get_m2_eff_R(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     if ξ != 0
         throw(ArgumentError("Conformal coupling not implemented yet!"))
     end
-    m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ f.^2 .- mᵪ.*f)
+    m2 = @. ode.a^2 * (mᵪ^2 + ode.H ^2 + f^2 - mᵪ*f)
     return m2
 end
 
@@ -74,7 +74,7 @@ function get_m2_eff_I(ode::ODEData, mᵪ::Real, ξ::Real, f::Vector)
     if ξ != 0
         throw(ArgumentError("Conformal coupling not implemented yet!"))
     end
-    m2 = ode.a.^2 .* (mᵪ^2 .+ ode.H .^2 .+ f.^2 .+ mᵪ.*f)
+    m2 = @. ode.a^2 * (mᵪ^2 + ode.H ^2 + f^2 + mᵪ*f)
     return m2
 end
 get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
@@ -168,12 +168,12 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-2, 2, num_k) * ode.aₑ * model.mᵩ
-    mᵪ =  logspace(-1.3, 0.7, num_mᵪ).* mᵩ
+    k = logspace(-2, 2, num_k) * ode.aₑ * model.mᵩ 
+    mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
 
-    ξ = [0.0]
+    ξ = SA[0.0]
     #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
-    m3_2 = collect(range(0.0, 2.0; length=num_m32)) * mᵩ
+    m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
 
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")

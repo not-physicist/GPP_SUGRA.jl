@@ -9,6 +9,7 @@ using ..Commons
 
 # type of interpolator...
 const INTERPOLATOR_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
+#  const INTERPOLATOR_TYPE = Interpolations.GriddedInterpolation{Float64, 1, Vector{Float64}, Interpolations.Gridded{Interpolations.Linear{Interpolations.Throw{Interpolations.OnGrid}}}, Tuple{Vector{Float64}}}
 
 """
 get ω functions ready from ODE solution
@@ -21,10 +22,11 @@ LinearInterpolations uses ~ half as much as memories, a bit faster also.
 """
 function init_Ω(k::Real, τ::Vector, m2::Vector)
     # get sampled ω values and interpolate
-    ω = (k^2 .+ m2).^(1/2)
+    ω = @. (k^2 + m2)^(1/2)
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
     get_Ω = LinearInterpolations.Interpolate(τ, Ω)
+    #  get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
 
     return get_Ω
 end
@@ -90,13 +92,13 @@ end
 compute comoving energy (a⁴ρ) given k, m2, and f arrays
 """
 function get_com_energy(k::Vector, f::Vector, m2::Real)
-    ω = sqrt.(k .^2 .+ m2)
-    integrand = k.^2 .* ω .* f ./ (4*π^2)
+    ω = sqrt.(@. k^2 + m2)
+    integrand = @. k^2 * ω * f / (4*π^2)
     return integrate(k, integrand)
 end
 
 function get_com_number(k::Vector, f::Vector)
-    integrand = k.^2 .* f ./ (4*π^2) 
+    integrand = @. k^2 * f / (4*π^2) 
     return integrate(k, integrand)
 end
 
@@ -112,15 +114,15 @@ results data structure:
 
 """
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
-                   k::Vector, mᵪ::Vector, ξ::Vector, 
+                   k::Vector, mᵪ::SVector, ξ::SVector, 
                    get_m2_eff::Function;
                    direct_out::Bool=false,
                    fn_suffix::String="")
     # interate over the model parameters
     for ξᵢ in ξ
-        ρs = zeros(size(mᵪ))
-        ns = zeros(size(mᵪ))
-        f0s = zeros(size(mᵪ))
+        ρs = zeros(MVector{size(mᵪ)[1]})
+        ns = zeros(MVector{size(mᵪ)[1]})
+        f0s = zeros(MVector{size(mᵪ)[1]})
         ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
         
         iter = ProgressBar(enumerate(mᵪ))
@@ -129,8 +131,11 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
             get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
+            #  get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
+            #  @show typeof(get_m2)
             # dm2 = d(m^2)/dτ
             get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
+            #  get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
             
             f, err = solve_diff(k, ode.τ, m2_eff, get_m2, get_dm2)
             
@@ -150,8 +155,10 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         # k is in planck unit
         # want ρ and n in planck unit as well
         # add all other factors in the plotting
+        #  @show ξ_dirᵢ fn_suffix
+        #  @show typeof(mᵪ / mᵩ) typeof(f0s) typeof(ρs) typeof(ns)
         npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz",
-                 Dict("m_chi" =>mᵪ / mᵩ, "f0"=>f0s, "rho"=>ρs, "n"=>ns))
+                 Dict("m_chi" => [mᵪ / mᵩ ...], "f0"=>[f0s...], "rho"=>[ρs...], "n"=>[ns...]))
     end
 end
 
@@ -164,8 +171,8 @@ results data structure:
             m_χ=m_χ.npz
 """
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
-                   k::Vector, mᵪ::Vector, ξ::Vector, 
-                   m3_2::Vector,
+                   k::Vector, mᵪ::SVector, ξ::SVector, 
+                   m3_2::SVector,
                    get_m2_eff::Function;
                    direct_out::Bool=false,
                    fn_suffix::String="")

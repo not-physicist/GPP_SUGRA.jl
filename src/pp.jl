@@ -1,6 +1,6 @@
 module PPs
 
-using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, LinearInterpolations
+using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, LinearInterpolations, Printf
 #  using JLD2
 #  using Infiltritor
 #  using Interpolations
@@ -19,13 +19,12 @@ One is responsible to make sure ode.τ and m2_eff has the same dimension. Now od
 
 LinearInterpolations uses ~ half as much as memories, a bit faster also.
 """
-function init_Ω(k::Real, ode::ODEData, m2::INTERPOLATOR_TYPE)
+function init_Ω(k::Real, τ::Vector, m2::Vector)
     # get sampled ω values and interpolate
-    # TODO: maybe one can pass m2 vector instead of interpolator; maybe faster
-    ω = (k^2 .+ m2.(ode.τ)).^(1/2)
+    ω = (k^2 .+ m2).^(1/2)
     # cumulative integration
-    Ω = cumul_integrate(ode.τ, ω)
-    get_Ω = LinearInterpolations.Interpolate(ode.τ, Ω)
+    Ω = cumul_integrate(τ, ω)
+    get_Ω = LinearInterpolations.Interpolate(τ, Ω)
 
     return get_Ω
 end
@@ -52,19 +51,19 @@ Solve the differential equations for GPP
 dtmax not used, but keep just in case
 NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, ode::ODEData, m2::INTERPOLATOR_TYPE, dm2::INTERPOLATOR_TYPE)
-    Ω = init_Ω(k, ode, m2)
-    ω = x -> sqrt(k^2 + m2(x))
-    dω = x -> dm2(x) / (2*ω(x))
+function solve_diff(k::Real, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
+    Ω = init_Ω(k, τ, m2)
+    ω = x -> sqrt(k^2 + get_m2(x))
+    dω = x -> get_dm2(x) / (2*ω(x))
     #  @show typeof(ω) typeof(dω) typeof(Ω)
     p = (ω, dω, Ω)
-    t_span = [ode.τ[1], ode.τ[end-2]]
+    t_span = [τ[1], τ[end-2]]
 
     u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
 
     prob = ODEProblem(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e7)
+    sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     res = sol.u[end]
     f = abs(res[2])^2
@@ -73,12 +72,12 @@ function solve_diff(k::Real, ode::ODEData, m2::INTERPOLATOR_TYPE, dm2::INTERPOLA
     return f, max_err
 end 
 
-function solve_diff(k::Vector, ode::ODEData, m2::INTERPOLATOR_TYPE, dm2::INTERPOLATOR_TYPE)
+function solve_diff(k::Vector, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
     f = zeros(size(k)) 
     err = zeros(size(k)) 
     
     Threads.@threads for i in 1:length(k)
-        res = solve_diff(k[i], ode, m2, dm2)
+        res = solve_diff(k[i], τ, m2, get_m2, get_dm2)
         #  @show typeof(res), res
         f[i] = res[1]
         err[i] = res[2]
@@ -126,14 +125,14 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         
         iter = ProgressBar(enumerate(mᵪ))
         for (i, mᵪᵢ) in iter
-            set_description(iter, string(@sprintf("mᵪ:%.2f", mᵪᵢ)))
+            set_description(iter, ("mᵪ: $(@sprintf("%.2f", mᵪᵢ))"))
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
             get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
             # dm2 = d(m^2)/dτ
             get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
             
-            f, err = solve_diff(k, ode, get_m2, get_dm2)
+            f, err = solve_diff(k, ode.τ, m2_eff, get_m2, get_dm2)
             
             # take the ρ at the end, use last m2_eff
             ρs[i] = get_com_energy(k, f, m2_eff[end-2])
@@ -172,7 +171,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    fn_suffix::String="")
     iter = ProgressBar(m3_2)
     for x in iter
-        set_description(iter, string(@sprintf("m_32:%.2f", x)))
+        set_description(iter, "m_32: $(@sprintf("%.2f", x))",)
         m3_2_dir = data_dir * "m3_2=$(x/mᵩ)/"
         m2_eff_R(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, x)
         save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff_R, 

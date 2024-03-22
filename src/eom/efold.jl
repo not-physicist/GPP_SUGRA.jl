@@ -28,7 +28,7 @@ function friedmann_eq_efold(u, p, t)
     get_V = p[1]
     get_dV = p[2]
 
-    H2 = get_H2(ϕ, dϕdN, get_V)
+    #  H2 = get_H2(ϕ, dϕdN, get_V)
     
     return SA[dϕdN, - dϕdN ^ 3 - 3 * dϕdN - get_dV(ϕ) / get_H2(ϕ, dϕdN, get_V), a]
 end

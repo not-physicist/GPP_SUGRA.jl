@@ -374,7 +374,7 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
                         ax.plot(m, ρ_s_T, color=color, label=label)
 
                         #  trying to fit the first part
-                        popt, pcov = curve_fit(linear_f, m[:5], ρ_s_T[:5])
+                        popt, pcov = curve_fit(linear_f, m[m<0.1], ρ_s_T[m<0.1])
                         perr = np.sqrt(np.diag(pcov))
                         #  print(y, popt, perr)
                         slopes = np.append(slopes, popt[0])
@@ -505,8 +505,8 @@ if __name__ == "__main__":
     _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
     cp_model_data(dn)
     plot_background(dn)
-    #  plot_f_m3_2(dn, sparse=0.25)
-    #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    plot_f_m3_2(dn, sparse=0.5)
+    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

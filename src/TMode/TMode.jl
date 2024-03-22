@@ -162,7 +162,7 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
 end
 
 function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
-                num_mᵪ::Int=10, num_m32::Int=5, num_k::Int=100)
+                num_mᵪ::Int=20, num_m32::Int=5, num_k::Int=100)
     model = TMode(1, 0.965, r, NaN)
     @info dump_struct(model)
     mᵩ = model.mᵩ
@@ -172,7 +172,8 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     mᵪ =  logspace(-1.3, 0.7, num_mᵪ).* mᵩ
 
     ξ = [0.0]
-    m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
+    #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
+    m3_2 = collect(range(0.0, 2.0; length=num_m32)) * mᵩ
 
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
@@ -181,6 +182,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
     return true
 end
+# IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100)
 

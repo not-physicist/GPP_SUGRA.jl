@@ -20,7 +20,7 @@ the friedman equation written in number of efolds
 
 H is the normal Hubble
 """
-function friedmann_eq_efold(u, p, t)
+function friedmann_eq_efold(u::SVector, p::Tuple, t::Real)
     ϕ = u[1]
     dϕdN = u[2]
     a = u[3]
@@ -37,8 +37,8 @@ end
 assume u₀ in efold units
 """
 function solve_eom(u₀::SVector{3, Float64}, 
-                         p::Tuple{Function, Function})
-    # defines when to terminate integrator (at ϵ1 = 0.5)
+                   p::Tuple{Function, Function})
+    # defines when to terminate integrator (at ϵ1 = 0.1)
     condition(u, t, integrator) = u[2]^2 / (2) <= 0.1
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition,affect!)
@@ -46,11 +46,11 @@ function solve_eom(u₀::SVector{3, Float64},
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 10.0], p)
     # dtmax setting is required to ensure the following differentiation behaves well enough
     sol = solve(prob, RK4(), reltol=1e-6, abstol=1e-8, callback=cb, dtmax=0.001)
-    
+     
     N = sol.t
-    ϕ = [x[1] for x in sol.u]
-    dϕdN = [x[2] for x in sol.u]
-    a = [x[3] for x in sol.u]
+    ϕ = sol[1, :]
+    dϕdN = sol[2, :]
+    a = sol[3, :]
 
     # the last two element seems to be duplicate; something to do with the termination
     N, ϕ, dϕdN, a = N[1:end-1], ϕ[1:end-1], dϕdN[1:end-1], a[1:end-1]
@@ -58,8 +58,8 @@ function solve_eom(u₀::SVector{3, Float64},
     
     # due to numerical nature, very small negative number can be produced for H^2
     H = sqrt.(max.(0, get_H2.(ϕ, dϕdN, p[1])))
-    τ = cumul_integrate(N, 1 ./ (a .* H))
-    dϕdτ = a .* H .* dϕdN
+    τ = cumul_integrate(N, @. 1 / (a * H))
+    dϕdτ = @. a * H * dϕdN
     
     return τ, ϕ, dϕdτ, a, a[end], H[end]
 end

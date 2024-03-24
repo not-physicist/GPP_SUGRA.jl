@@ -14,3 +14,4 @@
 - After: a bit longer, ~2.4 GiB allocation
 - Now: `9.314240 seconds (81.92 k allocations: 2.349 GiB, 0.13% gc time)` or with Interpolation: `8.851697 seconds (102.15 k allocations: 4.439 GiB, 1.19% gc time, 0.03% compilation time)`
 - Use fuse vectorization and static arrays: no real performance changes
+- Use built-in solution handing (instead of sol.u), no real improvement

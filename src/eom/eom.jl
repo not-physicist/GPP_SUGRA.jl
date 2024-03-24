@@ -40,7 +40,7 @@ end
 """
 Solving EOM using efolds and conformal time
 """
-function solve_eom(u₀, p)
+function solve_eom(u₀::SVector, p::Tuple)
     τ1, ϕ1, dϕdτ1, a1, aₑ, Hₑ = EFolds.solve_eom(u₀, p)
     @info "Enf of inflation: ϕ = $(ϕ1[end])"
     τ1 = τ1 .- τ1[end]

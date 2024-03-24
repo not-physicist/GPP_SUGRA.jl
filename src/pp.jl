@@ -34,7 +34,7 @@ end
 """
 Defines the differential equation to solve
 """
-function get_diff_eq(u, p, t)
+function get_diff_eq(u::SVector, p::Tuple, t::Real)
     ω = p[1]
     dω = p[2]
     Ω = p[3]
@@ -67,9 +67,11 @@ function solve_diff(k::Real, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, 
     #  adaptive algorithm depends on relative tolerance
     sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
-    res = sol.u[end]
-    f = abs(res[2])^2
-    max_err = abs(abs(res[1])^2 - abs(res[2])^2 - 1) 
+    #  res = sol.u[end]
+    αₑ = sol[1, end]
+    βₑ = sol[2, end]
+    f = abs(αₑ)^2
+    max_err = abs(abs(αₑ)^2 - abs(βₑ)^2 - 1) 
 
     return f, max_err
 end 

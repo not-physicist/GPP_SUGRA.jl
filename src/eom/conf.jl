@@ -37,9 +37,9 @@ function solve_eom(u₀::SVector{3, Float64},
     sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-7, abstol=1e-9, save_start=false)
     
     τ= sol.t
-    ϕ = [x[1] for x in sol.u]
-    dϕdτ = [x[2] for x in sol.u]
-    a = [x[3] for x in sol.u]
+    ϕ = sol[1, :]
+    dϕdτ = sol[2, :]
+    a = sol[3, :]
        
     return τ, ϕ, dϕdτ, a
 end

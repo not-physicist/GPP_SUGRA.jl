@@ -11,7 +11,7 @@ export logspace, read_ode, ODEData, get_end, LinearInterpolations, dump_struct
 """
 returns an array whose elements are even spaced on logarithmic scale
 """
-function logspace(start::Float64, stop::Float64, num::Integer)::Vector{Float64}
+function logspace(start, stop, num::Integer)
     return 10.0 .^ (range(start, stop, num))
 end
 
@@ -42,15 +42,15 @@ function read_ode(data_dir::String)::ODEData
     #  fn = data_dir * "ode.jld2"
     #  data = load(fn)
 
-    τ = data["tau"]::Vector{Float64}
-    ϕ = data["phi"]::Vector{Float64}
-    dϕ = data["phi_d"]::Vector{Float64}
-    a = data["a"]::Vector{Float64}
-    app_a = data["app_a"]::Vector{Float64}
-    H = data["H"]::Vector{Float64}
-    err = data["err"]::Vector{Float64}
-    aₑ = data["a_end"]::Float64
-    Hₑ = data["H_end"]::Float64
+    τ = data["tau"]
+    ϕ = data["phi"]
+    dϕ = data["phi_d"]
+    a = data["a"]
+    app_a = data["app_a"]
+    H = data["H"]
+    err = data["err"]
+    aₑ = data["a_end"]
+    Hₑ = data["H_end"]
     return ODEData(τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ)
 end
 

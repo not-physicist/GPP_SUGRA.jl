@@ -80,11 +80,11 @@ function solve_diff(k::Vector, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE
     f = zeros(size(k)) 
     err = zeros(size(k)) 
     
-    Threads.@threads for i in 1:length(k)
-        res = solve_diff(k[i], τ, m2, get_m2, get_dm2)
+    Threads.@threads for i in eachindex(k)
+        @inbounds res = solve_diff(k[i], τ, m2, get_m2, get_dm2)
         #  @show typeof(res), res
-        f[i] = res[1]
-        err[i] = res[2]
+        @inbounds f[i] = res[1]
+        @inbounds err[i] = res[2]
     end
     
     return f, err

@@ -168,7 +168,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-2, 2, num_k) * ode.aₑ * model.mᵩ 
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
     mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
 
     ξ = SA[0.0]
@@ -185,6 +185,20 @@ end
 # IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100)
+
+function save_f_single()
+    r = 0.001
+    data_dir = MODEL_DATA_DIR
+
+    model = TMode(1, 0.965, r, NaN)
+    mᵩ = model.mᵩ
+    ode = read_ode(data_dir)
+    
+    num_k = 10
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
+    m2_eff_R(ode, mᵪ, ξ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, 0.0))
+    PPs.test_ensemble(k, ode, m2_eff_R, mᵩ, 0.0)
+end
 
 function test_save_f(data_dir::String=MODEL_DATA_DIR)
     model = ModelDatas.TMode(1, 0.965, 0.001, 1.7)

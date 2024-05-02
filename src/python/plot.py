@@ -50,15 +50,15 @@ def plot_background(dn):
     ax[0, 0].plot(tau, phi, c="k")
     ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
-    ax[0, 0].set_xlabel("$\eta$")
-    ax[0, 0].set_ylabel("$\phi$")
+    ax[0, 0].set_xlabel(r"$\eta$")
+    ax[0, 0].set_ylabel(r"$\phi$")
     #  ax[0, 0].set_xlim((0, 2e4))
     #  ax[0, 0].set_ylim((-0.01, 0.01))
 
     ax[0, 1].plot(tau, a, c="k")
     ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
 
-    ax[0, 1].set_xlabel("$\eta$")
+    ax[0, 1].set_xlabel(r"$\eta$")
     ax[0, 1].set_ylabel("$a/a_i$")
 
     #  ax[1, 0].plot(tau, phi, c="k")
@@ -71,7 +71,7 @@ def plot_background(dn):
 
     ax[1, 0].plot(tau, H, c="k")
     ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
-    ax[1, 0].set_xlabel("$\eta$")
+    ax[1, 0].set_xlabel(r"$\eta$")
     ax[1, 0].set_ylabel("$H$")
     ax[1, 0].set_yscale("log")
     #  ax[1, 0].set_xlim((tau[0], 0))
@@ -80,7 +80,7 @@ def plot_background(dn):
     ax[1, 1].plot(tau, a, c="k")
     ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
 
-    ax[1, 1].set_xlabel("$\eta$")
+    ax[1, 1].set_xlabel(r"$\eta$")
     ax[1, 1].set_ylabel("$a/a_i$")
     ax[1, 1].set_yscale("log")
 
@@ -309,8 +309,8 @@ def _get_n(fn):
     """
     data = np.load(fn)
     m = data["m_chi"]
-    rho = data["n"] * m
-    return m, rho
+    nm = data["n"] * m
+    return m, nm
 
 
 def _power_law(x, a, b, n):
@@ -318,13 +318,15 @@ def _power_law(x, a, b, n):
     return a*x**n + b
 
 
-def get_ρ_s_Trh(nm, mᵩ, aₑ, Hₑ):
+def get_ρ_s_Trh(nm, mᵩ, rho_p):
     """
     calculate ρ_{χ, 0} / (s₀ T_{rh})
     assume all inputs are in reduced planck unit
     except nm which  is nᵪ * (mᵪ / m_ϕ)
+    Now uses the correct formula (with rho_p)
     """
-    return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
+    #  return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
+    return 3.0 / 4.0 * nm * mᵩ / rho_p
 
 
 def linear_f(x, a):
@@ -333,7 +335,7 @@ def linear_f(x, a):
 def inverse_f(x, a, b):
     return a * x + b
 
-def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
+def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
@@ -363,11 +365,12 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
                 full_fns_R = [x for x in full_fns if "_R" in x]
                 full_fns_I = [x for x in full_fns if "_I" in x]
                 for i, (fn_R, fn_I) in enumerate(zip(full_fns_R, full_fns_I)):
-                    m_R, rho_R = _get_n(fn_R)
-                    m_I, rho_I = _get_n(fn_I)
+                    m_R, nm_R = _get_n(fn_R)
+                    m_I, nm_I = _get_n(fn_I)
                     if np.array_equal(m_R, m_I):
                         m = m_R
-                        ρ_s_T = get_ρ_s_Trh(rho_R + rho_I, mᵩ, aₑ, Hₑ)
+                        ρ_s_T = get_ρ_s_Trh(nm_R + nm_I, mᵩ, rho_p)
+                        print(dn_i, ρ_s_T[0])
 
                         color = cmap(y/max(m3_2s))
                         label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
@@ -387,7 +390,7 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
                 # plot every integrated.npz individually
                 for i, fn_i in enumerate(full_fns):
                     #  print(fn_i)
-                    m, rho = _get_n(fn_i)
+                    m, nm = _get_n(fn_i)
                     label = ''
                     ls = "-"
                     if fn_R[i] == 1:
@@ -398,7 +401,7 @@ def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False):
                     else:
                         pass
                     color = cmap(y/max(m3_2s))
-                    ρ_s_T = get_ρ_s_Trh(rho, mᵩ, aₑ, Hₑ)
+                    ρ_s_T = get_ρ_s_Trh(nm, mᵩ, rho_p)
                     ax.plot(m, ρ_s_T, color=color, ls=ls, label=label)
     
     # add linear part for visual guidance
@@ -502,11 +505,12 @@ def cp_model_data(dn):
 if __name__ == "__main__":
     # TMode
     dn = "data/TMode/"
-    _, _, _, _, _, aₑ, Hₑ, _, _, mᵩ = read_ode(dn)
+    _, _, _, _, _, _, _, _, H, mᵩ = read_ode(dn)
+    rho_p = 3 * H[-1]**2
     cp_model_data(dn)
     plot_background(dn)
     plot_f_m3_2(dn, sparse=0.5)
-    plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True)
+    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

@@ -7,6 +7,7 @@ export SmallFields
 export TModes
 
 include("common.jl")
+include("isocurv.jl")
 include("pp.jl")
 include("eom/eom.jl")
 

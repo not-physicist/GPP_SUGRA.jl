@@ -28,9 +28,6 @@ function friedmann_eq_efold(u::SVector, p::Tuple, t::Real)
     get_V = p[1]
     get_dV = p[2]
 
-    #  H2 = get_H2(ϕ, dϕdN, get_V)
-    
-    # TODO: changed the term, probably ok, rerun everything!
     return SA[dϕdN, + dϕdN ^ 3 / 2.0 - 3 * dϕdN - get_dV(ϕ) / get_H2(ϕ, dϕdN, get_V), a]
 end
 

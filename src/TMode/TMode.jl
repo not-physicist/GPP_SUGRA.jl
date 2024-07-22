@@ -16,7 +16,8 @@ using StaticArrays, NPZ, Logging
 
 # global constant
 const MODEL_NAME="TMode"
-const MODEL_DATA_DIR="data/$MODEL_NAME/"
+# not complete dir!
+const MODEL_DATA_DIR="data/$MODEL_NAME-"
 
 function get_V(ϕ::Real, model::TMode)
     x = ϕ / (sqrt(6) * model.α)
@@ -81,7 +82,7 @@ get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode
 get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 
 
-function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR)
+function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/")
     mkpath(data_dir)
 
     model = TMode(1, 0.965, r, ϕᵢ)
@@ -137,9 +138,8 @@ function test_ode(data_dir::String=MODEL_DATA_DIR)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))
 
 end
-=#
 
-function save_m_eff(data_dir::String=MODEL_DATA_DIR)
+function save_m_eff(data_dir::String=MODEL_DATA_DIR*"$r/")
     model = TMode(1, 0.965, 0.001)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
@@ -160,8 +160,9 @@ function save_m_eff(data_dir::String=MODEL_DATA_DIR)
         end
     end
 end
+=#
 
-function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
+function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
                 num_mᵪ::Int=20, num_m32::Int=5, num_k::Int=100)
     model = TMode(1, 0.965, r, NaN)
     @info dump_struct(model)
@@ -169,7 +170,8 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR;
     ode = read_ode(data_dir)
 
     k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
-    mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
+    #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
+    mᵪ = SA[logspace(-1.3, 1.0, num_mᵪ).* mᵩ ...]
 
     ξ = SA[0.0]
     #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ

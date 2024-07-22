@@ -6,10 +6,11 @@ using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, Lin
 #  using Interpolations
 
 using ..Commons
+using ..Isocurvature
 
 # type of interpolator...
-const INTERPOLATOR_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
-#  const INTERPOLATOR_TYPE = Interpolations.GriddedInterpolation{Float64, 1, Vector{Float64}, Interpolations.Gridded{Interpolations.Linear{Interpolations.Throw{Interpolations.OnGrid}}}, Tuple{Vector{Float64}}}
+const INTERP_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
+#  const INTERP_TYPE = Interpolations.GriddedInterpolation{Float64, 1, Vector{Float64}, Interpolations.Gridded{Interpolations.Linear{Interpolations.Throw{Interpolations.OnGrid}}}, Tuple{Vector{Float64}}}
 
 """
 get ω functions ready from ODE solution
@@ -25,7 +26,7 @@ function init_Ω(k::Real, τ::Vector, m2::Vector)
     ω = @. (k^2 + m2)^(1/2)
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
-    get_Ω = LinearInterpolations.Interpolate(τ, Ω)
+    get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
     #  get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
 
     return get_Ω
@@ -51,11 +52,11 @@ end
 """
 get the parameters (interpolators) for diff_eq
 """
-function get_p(k::Real, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
+function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolate}
     ω = x -> sqrt(k^2 + get_m2(x))
     dω = x -> get_dm2(x) / (2*ω(x))
     #  @show typeof(ω) typeof(dω) typeof(Ω)
-    return ω, dω, init_Ω(k, τ, m2)
+    return ω, dω, Ω
 end
 
 """
@@ -63,9 +64,9 @@ Solve the differential equations for GPP
 dtmax not used, but keep just in case
 NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
-    p = get_p(k, τ, m2, get_m2, get_dm2)
-    t_span = [τ[1], τ[end-2]]
+function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolate}
+    p = get_p(k, get_m2, get_dm2, Ω)
+    # t_span = [τ[1], τ[end-2]]
 
     u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
     
@@ -75,63 +76,39 @@ function solve_diff(k::Real, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, 
     sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     #  res = sol.u[end]
-    #  αₑ = sol[1, end]
+    αₑ = sol[1, end]
     βₑ = sol[2, end]
-    f = abs(βₑ)^2
+    # f = abs(βₑ)^2
     #  max_err = abs(abs(αₑ)^2 - abs(βₑ)^2 - 1)
 
-    #  return f, max_err
-    return f
+    # @show αₑ, βₑ
+    return αₑ, βₑ
 end 
 
-function solve_diff(k::Vector, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
-    f = zeros(size(k)) 
+"""
+parallelized version for multiple momentum k 
+"""
+function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolate}
+    α = zeros(ComplexF64, size(k)) 
+    β = zeros(ComplexF64, size(k)) 
     #  err = zeros(size(k))
     
-    Threads.@threads for i in eachindex(k)
-        @inbounds res = solve_diff(k[i], τ, m2, get_m2, get_dm2)
+    @inbounds Threads.@threads for i in eachindex(k)
+        @inbounds res = solve_diff(k[i], t_span, get_m2, get_dm2, Ω[i])
         #  @show typeof(res), res
-        @inbounds f[i] = res
+        @inbounds α[i] = res[1]
+        @inbounds β[i] = res[2]
         #  @inbounds err[i] = res[2]
     end
     
     #  return f, err
-    return f
+    return α, β
 end
 
 ###########################################################################
+# test ensemble problem solver, seems slower...
 
-function solve_diff_ensemble(k::Vector, τ::Vector, m2::Vector, get_m2::INTERPOLATOR_TYPE, get_dm2::INTERPOLATOR_TYPE)
-    t_span = [τ[1], τ[end-2]]
-    u₀ = SA[1.0 + 0.0im, 0.0 + 0.0im]
-    parameters = [get_p(x, τ, m2, get_m2, get_dm2) for x in k]
-
-    prob = ODEProblem(get_diff_eq, u₀, t_span, parameters[1])
-
-    #  function prob_func(prob, i, repeat)
-        #  remake(prob, p = parameters[i])
-    #  end
-    #  let: ensure type stability
-    prob_func = let parameters = parameters
-        (prob, i, repeat) -> begin
-            remake(prob, p = parameters[i])
-        end 
-    end
-
-    function output_func(sol, i)
-        #  α = sol[1, end]
-        β = sol[2, end]
-        f = abs(β)^2
-        #  err = abs(abs(α)^2 - abs(β)^2 - 1)
-        return f, false
-    end
-    
-    ensemble_prob = EnsembleProblem(prob, prob_func = prob_func, output_func=output_func)
-    sim = solve(ensemble_prob, RK4(), EnsembleThreads(), trajectories = length(k), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
-    # dump(sim)
-    return sim[:]
-end
-
+INTERP_TYPE
 function test_ensemble(k::Vector, ode::ODEData, get_m2_eff::Function, mᵪ::Real, ξ::Real)
     m2_eff = get_m2_eff(ode, mᵪ, ξ)
     get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
@@ -145,7 +122,7 @@ end
 ###########################################################################
 #
 """
-compute comoving energy (a⁴ρ) given k, m2, and f arrays
+comoving energy (a⁴ρ) given k, m2, and f arrays
 """
 function get_com_energy(k::Vector, f::Vector, m2::Real)
     ω = sqrt.(@. k^2 + m2)
@@ -153,6 +130,9 @@ function get_com_energy(k::Vector, f::Vector, m2::Real)
     return integrate(k, integrand)
 end
 
+"""
+comoving number density (a³n) given k, m2, and f arrays
+"""
 function get_com_number(k::Vector, f::Vector)
     integrand = @. k^2 * f / (4*π^2) 
     return integrate(k, integrand)
@@ -185,30 +165,42 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         for i in iter
             @inbounds mᵪᵢ = mᵪ[i]
             set_description(iter, ("mᵪ: $(@sprintf("%.2f", mᵪᵢ))"))
+            
+            fn_out = "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz"
+            # skip if file already exists (skip the outer loop as well!)
+            if isfile(fn_out)
+                println("File exists: ", fn_out, " SKIPPING")
+                return 
+            end
+            
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
-            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
-            #  get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
-            # dm2 = d(m^2)/dτ
-            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
-            #  get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
-            
-            f = solve_diff(k, ode.τ, m2_eff, get_m2, get_dm2)
-            #  f = solve_diff_ensemble(k, ode.τ, m2_eff, get_m2, get_dm2)
-            
+            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
+            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
+
+            # want to caculate Ω here already, instead of in the inner loop
+            Ω = Array{Interpolate, 1}(undef, size(k))
+            @inbounds Threads.@threads for i in eachindex(k)
+                @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
+            end
+            # @show typeof(Ω)
+                
+            t_span = [ode.τ[1], ode.τ[end-2]]
+            α, β = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            f = abs2.(β)
+
             # take the ρ at the end, use last m2_eff
             @inbounds ρs[i] = get_com_energy(k, f, m2_eff[end-2])
             @inbounds ns[i] = get_com_number(k, f)
             @inbounds f0s[i] = f[1]
+            
+            # Δ2 = get_Δ2(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
-                npzwrite("$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz",
-                         Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f
-                              #  , "err"=>err
-                             ))
+                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f))
             end
         end
         # k is in planck unit

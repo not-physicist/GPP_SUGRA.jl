@@ -6,6 +6,7 @@ version = "0.1.0-DEV"
 [deps]
 LinearInterpolations = "b20c7882-2490-4592-a606-fbbfe9e745e8"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+MultiQuad = "8fca5bbe-a785-4bb7-9793-c0c8ddca5d4b"
 NPZ = "15e1cf62-19b3-5cfa-8e77-841668bca605"
 NumericalIntegration = "e7bfaba1-d571-5449-8927-abc22e82249b"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"

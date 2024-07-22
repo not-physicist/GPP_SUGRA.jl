@@ -504,13 +504,15 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    dn = "data/TMode/"
-    _, _, _, _, _, _, _, _, H, mᵩ = read_ode(dn)
-    rho_p = 3 * H[-1]**2
+    dn = "data/TMode-0.0001/"
+    _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
+    rho_p = 3 * H[-1]**2 * a[-1]**3
+    #  print(a[50000])
+    #  rho_p = a[50000]**3
     cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.5)
-    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    #  plot_f_m3_2(dn, sparse=0.5)
+    #  plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

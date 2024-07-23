@@ -15,3 +15,4 @@
 - Use `@inbounds` for `save_each`'s, a bit improvement, but expect more improvement in real usage: 9.187108 seconds (81.91 k allocations: 2.348 GiB, 0.63% gc time)
 - Ensure type stability: 9.387 s (51368 allocations: 2.35 GiB)
 - Now seems the best performance: Single result which took 9.279 s (0.68% GC) to evaluate, with a memory estimate of 2.35 GiB, over 79753 allocations.
+- Now (3f58176b06c9923e34c001397d97760cf50b480d) 10.887 s (55355 allocations: 2.11 GiB): clear regression

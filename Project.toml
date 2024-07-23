@@ -4,6 +4,7 @@ authors = ["not-physicist"]
 version = "0.1.0-DEV"
 
 [deps]
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LinearInterpolations = "b20c7882-2490-4592-a606-fbbfe9e745e8"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 MultiQuad = "8fca5bbe-a785-4bb7-9793-c0c8ddca5d4b"

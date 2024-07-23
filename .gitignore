@@ -4,3 +4,6 @@ f2py/
 typing/
 Manifest.toml
 figs/
+
+test-diffeq-type.jl
+test_rho_redshift.py

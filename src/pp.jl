@@ -3,13 +3,13 @@ module PPs
 using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, LinearInterpolations, Printf
 #  using JLD2
 #  using Infiltritor
-#  using Interpolations
+ using Interpolations
 
 using ..Commons
 using ..Isocurvature
 
 # type of interpolator...
-const INTERP_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
+# const INTERP_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
 #  const INTERP_TYPE = Interpolations.GriddedInterpolation{Float64, 1, Vector{Float64}, Interpolations.Gridded{Interpolations.Linear{Interpolations.Throw{Interpolations.OnGrid}}}, Tuple{Vector{Float64}}}
 
 """
@@ -26,10 +26,20 @@ function init_Ω(k::Real, τ::Vector, m2::Vector)
     ω = @. (k^2 + m2)^(1/2)
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
-    get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
-    #  get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
+    # get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
+    get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
 
     return get_Ω
+end
+
+"""
+get the parameters (interpolators) for diff_eq
+"""
+function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
+    ω = x -> sqrt(k^2 + get_m2(x))
+    dω = x -> get_dm2(x) / (2*ω(x))
+    #  @show typeof(ω) typeof(dω) typeof(Ω)
+    return ω, dω, Ω
 end
 
 """
@@ -50,21 +60,11 @@ function get_diff_eq(u::SVector, p::Tuple, t::Real)
 end
 
 """
-get the parameters (interpolators) for diff_eq
-"""
-function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolate}
-    ω = x -> sqrt(k^2 + get_m2(x))
-    dω = x -> get_dm2(x) / (2*ω(x))
-    #  @show typeof(ω) typeof(dω) typeof(Ω)
-    return ω, dω, Ω
-end
-
-"""
 Solve the differential equations for GPP
 dtmax not used, but keep just in case
 NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolate}
+function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
     p = get_p(k, get_m2, get_dm2, Ω)
     # t_span = [τ[1], τ[end-2]]
 
@@ -88,7 +88,7 @@ end
 """
 parallelized version for multiple momentum k 
 """
-function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolate}
+function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolations.GriddedInterpolation}
     α = zeros(ComplexF64, size(k)) 
     β = zeros(ComplexF64, size(k)) 
     #  err = zeros(size(k))
@@ -108,16 +108,15 @@ end
 ###########################################################################
 # test ensemble problem solver, seems slower...
 
-INTERP_TYPE
-function test_ensemble(k::Vector, ode::ODEData, get_m2_eff::Function, mᵪ::Real, ξ::Real)
-    m2_eff = get_m2_eff(ode, mᵪ, ξ)
-    get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
-    get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
-
-    @show solve_diff_ensemble(k, ode.τ, m2_eff, get_m2, get_dm2)[:, 1]
-    #  @time solve_diff(k, ode.τ, m2_eff, get_m2, get_dm2)
-    return true
-end
+# function test_ensemble(k::Vector, ode::ODEData, get_m2_eff::Function, mᵪ::Real, ξ::Real)
+#     m2_eff = get_m2_eff(ode, mᵪ, ξ)
+#     get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
+#     get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
+#
+#     @show solve_diff_ensemble(k, ode.τ, m2_eff, get_m2, get_dm2)[:, 1]
+#     #  @time solve_diff(k, ode.τ, m2_eff, get_m2, get_dm2)
+#     return true
+# end
 
 ###########################################################################
 #
@@ -168,18 +167,21 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             
             fn_out = "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix.npz"
             # skip if file already exists (skip the outer loop as well!)
-            if isfile(fn_out)
-                println("File exists: ", fn_out, " SKIPPING")
-                return 
-            end
+            # if isfile(fn_out)
+            #     println("File exists: ", fn_out, " SKIPPING")
+            #     return 
+            # end
             
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
-            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
-            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
+            # get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
+            get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
+            # get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
+            get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
 
             # want to caculate Ω here already, instead of in the inner loop
-            Ω = Array{Interpolate, 1}(undef, size(k))
+            # Ω = Array{Interpolate, 1}(undef, size(k))
+            Ω = Array{Interpolations.GriddedInterpolation, 1}(undef, size(k))
             @inbounds Threads.@threads for i in eachindex(k)
                 @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
             end

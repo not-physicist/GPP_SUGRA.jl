@@ -26,8 +26,8 @@ function init_Ω(k::Real, τ::Vector, m2::Vector)
     ω = @. (k^2 + m2)^(1/2)
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
-    # get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
-    get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
+    get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
+    # get_Ω = Interpolations.interpolate((τ,), Ω, Gridded(Linear()))
 
     return get_Ω
 end
@@ -35,7 +35,8 @@ end
 """
 get the parameters (interpolators) for diff_eq
 """
-function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
+function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: LinearInterpolations.Interpolate}
+# function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
     ω = x -> sqrt(k^2 + get_m2(x))
     dω = x -> get_dm2(x) / (2*ω(x))
     #  @show typeof(ω) typeof(dω) typeof(Ω)
@@ -64,7 +65,8 @@ Solve the differential equations for GPP
 dtmax not used, but keep just in case
 NOTE: max_err is now deprecated!
 """
-function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
+function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: LinearInterpolations.Interpolate}
+# function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
     p = get_p(k, get_m2, get_dm2, Ω)
     # t_span = [τ[1], τ[end-2]]
 
@@ -88,7 +90,8 @@ end
 """
 parallelized version for multiple momentum k 
 """
-function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolations.GriddedInterpolation}
+function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: LinearInterpolations.Interpolate}
+# function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolations.GriddedInterpolation}
     α = zeros(ComplexF64, size(k)) 
     β = zeros(ComplexF64, size(k)) 
     #  err = zeros(size(k))
@@ -161,7 +164,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         ξ_dirᵢ = data_dir * "f_ξ=$ξᵢ/"
         
         iter = ProgressBar(eachindex(mᵪ))
-        for i in iter
+        @inbounds for i in iter
             @inbounds mᵪᵢ = mᵪ[i]
             set_description(iter, ("mᵪ: $(@sprintf("%.2f", mᵪᵢ))"))
             
@@ -174,14 +177,13 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
-            # get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
-            get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
-            # get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
-            get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
-
+            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
+            # get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
+            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
+            # get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
             # want to caculate Ω here already, instead of in the inner loop
-            # Ω = Array{Interpolate, 1}(undef, size(k))
-            Ω = Array{Interpolations.GriddedInterpolation, 1}(undef, size(k))
+            Ω = Array{Interpolate, 1}(undef, size(k))
+            # Ω = Array{Interpolations.GriddedInterpolation, 1}(undef, size(k))
             @inbounds Threads.@threads for i in eachindex(k)
                 @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
             end
@@ -196,7 +198,11 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             @inbounds ns[i] = get_com_number(k, f)
             @inbounds f0s[i] = f[1]
             
-            # Δ2 = get_Δ2(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
+            # for isocurvature calculation, need Ω only at the end 
+            # interpolate for k
+            Ω_new = [x(ode.τ[end-2]) for x in Ω]
+            @show typeof(Ω_new)
+            @time Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
                 return f

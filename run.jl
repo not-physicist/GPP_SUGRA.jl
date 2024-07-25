@@ -5,7 +5,7 @@ Pkg.activate("./")
 using GPP_SUGRA
 
 @time TModes.save_eom_benchmark()
-@time TModes.save_f_benchmark()
+@time TModes.save_f_benchmark2()
 
 # want roughly 4 efolds of inflation
 #  @time TModes.save_eom(1.67, 0.001, "data/TMode-0.001/")

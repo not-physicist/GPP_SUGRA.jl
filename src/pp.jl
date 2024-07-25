@@ -84,7 +84,7 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where
     #  max_err = abs(abs(αₑ)^2 - abs(βₑ)^2 - 1)
 
     # @show αₑ, βₑ
-    return αₑ, βₑ
+    return αₑ, βₑ, p[1](t_span[end])
 end 
 
 """
@@ -94,6 +94,7 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
 # function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector{T}) where {T <: Interpolations.GriddedInterpolation}
     α = zeros(ComplexF64, size(k)) 
     β = zeros(ComplexF64, size(k)) 
+    ω = zeros(ComplexF64, size(k)) 
     #  err = zeros(size(k))
     
     @inbounds Threads.@threads for i in eachindex(k)
@@ -101,11 +102,12 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
         #  @show typeof(res), res
         @inbounds α[i] = res[1]
         @inbounds β[i] = res[2]
+        @inbounds ω[i] = res[3]
         #  @inbounds err[i] = res[2]
     end
     
     #  return f, err
-    return α, β
+    return α, β, ω
 end
 
 ###########################################################################
@@ -190,7 +192,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # @show typeof(Ω)
                 
             t_span = [ode.τ[1], ode.τ[end-2]]
-            α, β = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            α, β, ω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
             f = abs2.(β)
 
             # take the ρ at the end, use last m2_eff
@@ -201,14 +203,14 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # for isocurvature calculation, need Ω only at the end 
             # interpolate for k
             Ω_new = [x(ode.τ[end-2]) for x in Ω]
-            @show typeof(Ω_new)
-            @time Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+            # @show typeof(Ω_new)
+            Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
-                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f))
+                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2))
             end
         end
         # k is in planck unit
@@ -217,7 +219,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
         #  @show ξ_dirᵢ fn_suffix
         #  @show typeof(mᵪ / mᵩ) typeof(f0s) typeof(ρs) typeof(ns)
         npzwrite("$(ξ_dirᵢ)integrated$fn_suffix.npz",
-                 Dict("m_chi" => [mᵪ / mᵩ ...], "f0"=>[f0s...], "rho"=>[ρs...], "n"=>[ns...]))
+                Dict("m_chi" => [mᵪ / mᵩ ...], "f0"=>[f0s...], "rho"=>[ρs...], "n"=>[ns...]))
     end
 end
 

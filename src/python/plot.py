@@ -41,7 +41,7 @@ def plot_background(dn):
     out_fn = out_dn + "background.pdf"
     Path(out_dn).mkdir(parents=True, exist_ok=True)
 
-    tau, phi, phi_d,a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
+    tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
 
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)

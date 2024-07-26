@@ -77,14 +77,11 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where
     #  adaptive algorithm depends on relative tolerance
     sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
-    #  res = sol.u[end]
     αₑ = sol[1, end]
     βₑ = sol[2, end]
-    # f = abs(βₑ)^2
-    #  max_err = abs(abs(αₑ)^2 - abs(βₑ)^2 - 1)
+    ωₑ = p[1](t_span[end])
 
-    # @show αₑ, βₑ
-    return αₑ, βₑ, p[1](t_span[end])
+    return αₑ, βₑ, ωₑ
 end 
 
 """
@@ -204,12 +201,14 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # interpolate for k
             Ω_new = [x(ode.τ[end-2]) for x in Ω]
             # @show typeof(Ω_new)
-            Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], m2_eff[end])
+            # Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], m2_eff[end], mᵩ)
+            Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
+                # k is in planck unit
                 npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2))
             end
         end

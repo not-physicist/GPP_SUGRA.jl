@@ -3,6 +3,7 @@ module used to compute the isocurvature power spectrum of the DM
 """
 module Isocurvature 
 using LinearInterpolations, MultiQuad, NumericalIntegration
+using ..Commons
 
 export get_Δ2, get_Δ2_χ
 
@@ -53,41 +54,32 @@ end
 ###################################################################################################3
 # try discrete integration
 ###################################################################################################3
+#= 
+"""
+mode functions
+"""
 function get_χ(α::ComplexF64, β::ComplexF64, Ω::Real, ω::ComplexF64)
     return (α*exp(-1.0im*Ω) + β*exp(+1.0im*Ω) ) / sqrt(2*ω)
 end
+=#
 
 """
 b, c, d are indices for k, p, q
 TODO: use Integrals.jl for the numerical integration
-TODO: need to fix normalization regarding k
 """
 function get_Δ2_χ(k::Vector, α::Vector, β::Vector, Ω::Vector, ω::Vector,
                   a4ρ::Float64, aₑ::Float64, m2::Float64, mᵩ::Float64)
     function get_inner_integrand(c::Int64, d::Int64)
-        return k[d] * abs2(get_χ(α[c], β[c], Ω[c], ω[c])) * abs2(get_χ(α[d], β[d], Ω[d], ω[d]))
+        # return abs2(get_χ(α[c], β[c], Ω[c], ω[c])) * abs2(get_χ(α[d], β[d], Ω[d], ω[d]))
+        return k[c] * k[d] * (abs2(β[c]) * abs2(α[d]) + real( conj(α[c])*β[c]*α[d]*conj(β[d])*exp(2.0im*Ω[c] - 2.0im*Ω[d])) )
     end
     
-    function get_inner_int(b::Int64, c::Int64)
-        i_start = findfirst(x -> x > abs(k[b] - k[c]), k)
-        i_end = findlast(x -> x < k[b] + k[c], k)
-        # @show i_start, i_end
-        
-        return integrate(k[i_start:i_end], [get_inner_integrand(b, x) for x in i_start:i_end])
-    end
-
-    function get_outer_int(b::Int64)
-        i_start = 1
-        i_end = size(k)[1]
-        # @show i_start, i_end
-
-        return integrate(k[i_start:i_end], [get_inner_int(b, x) for x in i_start:i_end])
-    end
-
     res = zeros(size(k))
-    @inbounds Threads.@threads for x in eachindex(k)  # k[x] = k
-        pref = aₑ^4 * m2^2 / a4ρ^2 * k[x]^2 / (2*π)^4
-        @inbounds res[x] = pref * get_outer_int(x)
+    Threads.@threads for x in eachindex(k)  # k[x] = k
+        # pref = aₑ^4 * m2^2 / a4ρ^2 * k[x]^2 / (2*π)^4
+        pref = aₑ^2 * m2 / a4ρ^2 * k[x]^2 / (2*π)^4
+        # res[x] = pref * integrate(k, [get_inner_int(x, y) for y in eachindex(k)])
+        res[x] = pref * double_trap(get_inner_integrand, 0, Inf, z->abs(k[x] - z), z->k[x] + z, k, k)
     end
     return res
 end

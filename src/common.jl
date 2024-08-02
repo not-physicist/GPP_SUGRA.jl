@@ -110,4 +110,28 @@ function dump_struct(s)
     return out
 end
 
+"""
+compute double integrals numerically using trapzoidal rule
+similar multiquad.jl convention
+∫_{x₁}^{x₂} ∫_{y₁(x)}^{y₂(x)} f(y, x) dy dx
+
+Here, f should take two Int64 variables as indices
+"""
+function double_trap(f::Function, x1::Real, x2::Real, y1::Function, y2::Function, x::Vector, y::Vector)
+    """
+    integrate over y first
+    """
+    function get_inner_int(i::Int64)
+        i_start = findfirst(z -> z>y1(x[i]), y)
+        i_end = findlast(z -> z<y2(x[i]), y)
+        # @show i_start, i_end
+        return integrate(y[i_start:i_end], [f(z, i) for z in i_start:i_end])
+    end
+    
+    i_start2 = findfirst(z -> z > x1, x)
+    i_end2 = findlast(z -> z < x2, x)
+    # @show i_start, i_end
+    return integrate(x[i_start2:i_end2], [get_inner_int(z) for z in i_start2:i_end2])
+end
+
 end

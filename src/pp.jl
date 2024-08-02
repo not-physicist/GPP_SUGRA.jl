@@ -63,7 +63,6 @@ end
 """
 Solve the differential equations for GPP
 dtmax not used, but keep just in case
-NOTE: max_err is now deprecated!
 """
 function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: LinearInterpolations.Interpolate}
 # function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
@@ -79,9 +78,14 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where
 
     αₑ = sol[1, end]
     βₑ = sol[2, end]
-    ωₑ = p[1](t_span[end])
+    ωₑ = p[1](sol.t[end])
+    
+    δt = (sol.t[end] - sol.t[end-1])
+    δαₑ = (sol[1, end] - sol[1, end-1] ) / δt
+    δβₑ = (sol[2, end] - sol[2, end-1] ) / δt
+    δωₑ = (p[1](sol.t[end]) - p[1](sol.t[end-1]) ) / δt
 
-    return αₑ, βₑ, ωₑ
+    return αₑ, βₑ, ωₑ, δαₑ, δβₑ, δωₑ
 end 
 
 """
@@ -92,6 +96,10 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
     α = zeros(ComplexF64, size(k)) 
     β = zeros(ComplexF64, size(k)) 
     ω = zeros(ComplexF64, size(k)) 
+    δα = zeros(ComplexF64, size(k)) 
+    δβ = zeros(ComplexF64, size(k)) 
+    δω = zeros(ComplexF64, size(k)) 
+
     #  err = zeros(size(k))
     
     @inbounds Threads.@threads for i in eachindex(k)
@@ -100,11 +108,13 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
         @inbounds α[i] = res[1]
         @inbounds β[i] = res[2]
         @inbounds ω[i] = res[3]
-        #  @inbounds err[i] = res[2]
+        @inbounds δα[i] = res[4]
+        @inbounds δβ[i] = res[5]
+        @inbounds δω[i] = res[6]
     end
     
     #  return f, err
-    return α, β, ω
+    return α, β, ω, δα, δβ, δω
 end
 
 ###########################################################################
@@ -125,8 +135,8 @@ end
 """
 comoving energy (a⁴ρ) given k, m2, and f arrays
 """
-function get_com_energy(k::Vector, f::Vector, m2::Real)
-    ω = sqrt.(@. k^2 + m2)
+function get_com_energy(k::Vector, f::Vector, ω::Vector)
+    # ω = sqrt.(@. k^2 + m2)
     integrand = @. k^2 * ω * f / (4*π^2)
     return integrate(k, integrand)
 end
@@ -189,11 +199,11 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # @show typeof(Ω)
                 
             t_span = [ode.τ[1], ode.τ[end-2]]
-            α, β, ω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            α, β, ω, δα, δβ, δω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
             f = abs2.(β)
 
             # take the ρ at the end, use last m2_eff
-            @inbounds ρs[i] = get_com_energy(k, f, m2_eff[end-2])
+            @inbounds ρs[i] = get_com_energy(k, f, ω)
             @inbounds ns[i] = get_com_number(k, f)
             @inbounds f0s[i] = f[1]
             
@@ -201,8 +211,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # interpolate for k
             Ω_new = [x(ode.τ[end-2]) for x in Ω]
             # @show typeof(Ω_new)
-            # Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], m2_eff[end], mᵩ)
-            Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+            Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], mᵪᵢ^2, mᵩ)
+            # Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
                 return f

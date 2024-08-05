@@ -6,7 +6,7 @@ module Commons
 using NPZ, NumericalIntegration, LinearInterpolations
 # using Interpolations, JLD2
 
-export logspace, read_ode, ODEData, get_end, LinearInterpolations, dump_struct
+export logspace, read_ode, ODEData, get_end, LinearInterpolations, dump_struct, double_trap
 
 """
 returns an array whose elements are even spaced on logarithmic scale

@@ -200,6 +200,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 
             t_span = [ode.τ[1], ode.τ[end-2]]
             α, β, ω, δα, δβ, δω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            # err = @. abs2(α) - abs2(β)
+            # @show err
             f = abs2.(β)
 
             # take the ρ at the end, use last m2_eff

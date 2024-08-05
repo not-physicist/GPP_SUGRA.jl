@@ -97,7 +97,7 @@ function save_ode(data_dir::String=MODEL_DATA_DIR)
     _get_dV(x) = get_dV(x, model)
     p = (_get_V, _get_dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time ODEs.solve_ode(u₀, tspan, p, 1e2)
+    τ, ϕ, dϕ, a, ap, app, app_a, H, err = @time EOMs.solve_ode(u₀, tspan, p, 1e2)
 
     τₑ, aₑ = get_end(ϕ, dϕ, a, τ, ϕₑ)
     τₑ, Hₑ = get_end(ϕ, dϕ, H, τ, ϕₑ)

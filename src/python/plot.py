@@ -221,10 +221,15 @@ def plot_f(dn, out_suffix="", sparse=1):
         fn_R = [1 if "_R" in x else 0 for x in fns]
         fn_I = [1 if "_I" in x else 0 for x in fns]
         
-        fig, ax = plt.subplots()
+        
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+        fig2 = plt.figure()
+        ax2 = fig2.add_subplot()
 
         cmap = mpl.colormaps['viridis'].reversed()
-        cmap2 = mpl.colormaps['magma'].reversed()
+        # cmap2 = mpl.colormaps['magma'].reversed()
         
         # plot each spectrum
         for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
@@ -232,18 +237,22 @@ def plot_f(dn, out_suffix="", sparse=1):
             data = np.load(full_path)
             f = data["f"]
             k = data["k"]
+            Delta2 = data["Delta2"]
             #  print(f, k)
 
             if fn_I[i] == 1:
                 color = cmap(ms_i/max(ms))
                 #  ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, I", c=color, ls="--")
                 ax.plot(k, f, c=color, ls="--")
+                ax2.plot(k, Delta2, c=color, ls="--")
             elif fn_R[i] == 1:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -256,9 +265,22 @@ def plot_f(dn, out_suffix="", sparse=1):
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
-        plt.legend()
-        plt.savefig(out_fn, bbox_inches="tight")
-        plt.close()
+        fig.legend()
+        fig.savefig(out_fn, bbox_inches="tight")
+        plt.close(1)
+
+        ax2.plot(k, k**3, label=rf"$\sim k^3$", c="k", ls="--")
+        ax2.set_xlabel(r"$k/(a_e m_\phi)$")
+        ax2.set_ylabel(r"$\Delta_\delta^2$")
+        ax2.set_xscale("log")
+        ax2.set_yscale("log")
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+
+        fig2.legend()
+        out_fn = out_dn + f"isocurv_ξ={ξ:.2f}" + out_suffix + ".pdf"
+        fig2.savefig(out_fn, bbox_inches="tight")
+        plt.close(2)
 
 
 def plot_f_m3_2(dn, sparse=1):
@@ -504,20 +526,20 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    dn = "data/TMode-0.0001/"
+    dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
-    cp_model_data(dn)
-    plot_background(dn)
-    #  plot_f_m3_2(dn, sparse=0.5)
+    # cp_model_data(dn)
+    # plot_background(dn)
+    plot_f_m3_2(dn, sparse=0.5)
     #  plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     
     # SmallField
-    dn = "data/SmallField/"
+    # dn = "data/SmallField/"
     #  plot_background("data/SmallField/")
     #  plot_f("data/SmallField/")
     #  plot_integrated(dn)

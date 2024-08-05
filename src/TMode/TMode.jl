@@ -169,7 +169,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
+    k = logspace(-4.0, 0.0, num_k) * ode.aₑ * model.mᵩ 
     #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
     mᵪ = SA[logspace(-1.3, 1.0, num_mᵪ).* mᵩ ...]
 
@@ -185,7 +185,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     return true
 end
 # IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks
-const dn_bm = "data/TModes-0.001-benchmark/"
+const dn_bm = "data/TMode-0.001-benchmark/"
 save_eom_benchmark() = save_eom(1.6, 0.001, dn_bm)
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10, dn_bm)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100, dn_bm)

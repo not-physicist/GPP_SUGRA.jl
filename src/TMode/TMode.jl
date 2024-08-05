@@ -81,6 +81,13 @@ end
 # get_m2_eff_R(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 # get_m2_eff_I(ode, model, ξ, m3_2, mᵪ) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2)) / (model.mᵩ^2)
 
+"""
+effective mass squared WITHOUT sugra-correction
+"""
+function get_m2_no_sugra(ode::ODEData, mᵪ::Real, ξ::Real)
+    m2 = @. ode.a^2 * mᵪ^2 - (1-6*ξ) * ode.app_a
+    return m2
+end
 
 function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/")
     mkpath(data_dir)
@@ -169,7 +176,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-4.0, 0.0, num_k) * ode.aₑ * model.mᵩ 
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
     #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
     mᵪ = SA[logspace(-1.3, 1.0, num_mᵪ).* mᵩ ...]
 
@@ -177,11 +184,13 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
     m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
 
-    m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
-    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
-
-    m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
-    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
+    # m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
+    #
+    # m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
+    
+    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra, fn_suffix="_nosugra")
     return true
 end
 # IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks

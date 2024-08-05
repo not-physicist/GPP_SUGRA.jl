@@ -8,9 +8,6 @@ using StaticArrays, OrdinaryDiffEq, NPZ, NumericalIntegration, ProgressBars, Lin
 using ..Commons
 using ..Isocurvature
 
-# type of interpolator...
-# const INTERP_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
-#  const INTERP_TYPE = Interpolations.GriddedInterpolation{Float64, 1, Vector{Float64}, Interpolations.Gridded{Interpolations.Linear{Interpolations.Throw{Interpolations.OnGrid}}}, Tuple{Vector{Float64}}}
 
 """
 get ω functions ready from ODE solution
@@ -23,7 +20,8 @@ LinearInterpolations uses ~ half as much as memories, a bit faster also.
 """
 function init_Ω(k::Real, τ::Vector, m2::Vector)
     # get sampled ω values and interpolate
-    ω = @. (k^2 + m2)^(1/2)
+    # allow complex ω, or negative ω^2
+    ω = @. sqrt(Complex(k^2 + m2))
     # cumulative integration
     Ω = cumul_integrate(τ, ω)
     get_Ω = LinearInterpolations.Interpolate(τ, Ω, extrapolate=LinearInterpolations.Constant(0.0))
@@ -35,9 +33,9 @@ end
 """
 get the parameters (interpolators) for diff_eq
 """
-function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: LinearInterpolations.Interpolate}
+function get_p(k::Real, get_m2::T, get_dm2::T, Ω::U) where {T, U <: LinearInterpolations.Interpolate}
 # function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
-    ω = x -> sqrt(k^2 + get_m2(x))
+    ω = x -> sqrt(Complex(k^2 + get_m2(x)))
     dω = x -> get_dm2(x) / (2*ω(x))
     #  @show typeof(ω) typeof(dω) typeof(Ω)
     return ω, dω, Ω
@@ -64,7 +62,7 @@ end
 Solve the differential equations for GPP
 dtmax not used, but keep just in case
 """
-function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: LinearInterpolations.Interpolate}
+function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::U) where {T, U <: LinearInterpolations.Interpolate}
 # function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
     p = get_p(k, get_m2, get_dm2, Ω)
     # t_span = [τ[1], τ[end-2]]
@@ -75,6 +73,7 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::T) where
     prob = ODEProblem{false}(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
     sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
+    # sol = solve(prob, Rodas5P(autodiff=false), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     αₑ = sol[1, end]
     βₑ = sol[2, end]
@@ -159,6 +158,7 @@ results data structure:
     - f_ξ=ξ
         m_χ=m_χ.npz
 
+get_m2_eff should take three parameters: ode, mᵪ, ξ
 """
 function save_each(data_dir::String, mᵩ::Real, ode::ODEData, 
                    k::Vector, mᵪ::SVector, ξ::SVector, 
@@ -190,9 +190,11 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
             get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
             # get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
+            
             # want to caculate Ω here already, instead of in the inner loop
             Ω = Array{Interpolate, 1}(undef, size(k))
             # Ω = Array{Interpolations.GriddedInterpolation, 1}(undef, size(k))
+            # @show k[1]^2, k[end]^2, m2_eff[1], m2_eff[10]
             @inbounds Threads.@threads for i in eachindex(k)
                 @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
             end

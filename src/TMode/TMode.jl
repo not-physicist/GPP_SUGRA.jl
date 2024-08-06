@@ -184,13 +184,13 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
     m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
 
-    # m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
-    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
-    #
-    # m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
-    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
+    m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
+
+    m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
     
-    PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra, fn_suffix="_nosugra")
+    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra, fn_suffix="_nosugra")
     return true
 end
 # IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks

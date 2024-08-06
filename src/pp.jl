@@ -33,7 +33,7 @@ end
 """
 get the parameters (interpolators) for diff_eq
 """
-function get_p(k::Real, get_m2::T, get_dm2::T, Ω::U) where {T, U <: LinearInterpolations.Interpolate}
+function get_p(k::Real, get_m2::T, get_dm2::T, Ω::U) where {T , U <: LinearInterpolations.Interpolate}
 # function get_p(k::Real, get_m2::T, get_dm2::T, Ω::T) where {T <: Interpolations.GriddedInterpolation}
     ω = x -> sqrt(Complex(k^2 + get_m2(x)))
     dω = x -> get_dm2(x) / (2*ω(x))
@@ -130,12 +130,67 @@ end
 # end
 
 ###########################################################################
-#
+# solve mode functions directly
+
+function get_diff_eq_mode(u::SVector, p::Tuple, t::Real)
+    ω2 = p[1]
+
+    χ = u[1]
+    ∂χ = u[2]
+
+    dydt = @SVector [∂χ, -ω2(t)*χ]
+    return dydt
+end
+
+function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearInterpolations.Interpolate}
+    p = (x -> k^2 + get_m2(x),)
+    # @show sqrt(p[1](t_span[1])) sqrt(p[1](t_span[2]))
+
+    # try the simplest i.c. first
+    t0 = t_span[1]
+    u₀ = @SVector [1/sqrt(2*k)* exp(-1.0im*k*t0), -1.0im*k/sqrt(2*k)* exp(-1.0im*k*t0)] 
+    # @show u₀
+
+    prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, p)
+    sol = solve(prob, RK4(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
+
+    χₑ = sol[1, end]
+    ∂χₑ = sol[2, end]
+    ωₑ = sqrt(p[1](t_span[2]))
+
+    return χₑ, ∂χₑ, ωₑ
+end
+
+"""
+f = |β|^2 from mode functions χₖ, ∂χₖ
+"""
+function _get_f(ω, χ, ∂χ)
+    return abs2(ω * χ - 1.0im * ∂χ)/(2*ω)
+end
+
+function solve_diff_mode(k::Vector, t_span::Vector, get_m2::T) where {T <: LinearInterpolations.Interpolate}
+    χ = zeros(ComplexF64, size(k))
+    ∂χ = zeros(ComplexF64, size(k))
+    ω = zeros(ComplexF64, size(k))
+    f = zeros(size(k))
+
+    @inbounds Threads.@threads for i in eachindex(k)
+        @inbounds res = solve_diff_mode(k[i], t_span, get_m2)
+        χ[i], ∂χ[i], ω[i] = res
+    end
+    
+    f = @. _get_f(ω, χ, ∂χ)
+    # @show f, ω
+    return f, ω
+    # return χ, ∂χ
+end
+
+###########################################################################
 """
 comoving energy (a⁴ρ) given k, m2, and f arrays
 """
 function get_com_energy(k::Vector, f::Vector, ω::Vector)
-    # ω = sqrt.(@. k^2 + m2)
+    # @show k, f, ω
     integrand = @. k^2 * ω * f / (4*π^2)
     return integrate(k, integrand)
 end
@@ -201,10 +256,13 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # @show typeof(Ω)
                 
             t_span = [ode.τ[1], ode.τ[end-2]]
-            α, β, ω, δα, δβ, δω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            # α, β, ω, δα, δβ, δω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
             # err = @. abs2(α) - abs2(β)
             # @show err
-            f = abs2.(β)
+            # f = abs2.(β)
+            
+            f, ω = solve_diff_mode(k, t_span, get_m2)
+            @show f
 
             # take the ρ at the end, use last m2_eff
             @inbounds ρs[i] = get_com_energy(k, f, ω)
@@ -213,9 +271,9 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             
             # for isocurvature calculation, need Ω only at the end 
             # interpolate for k
-            Ω_new = [x(ode.τ[end-2]) for x in Ω]
+            # Ω_new = [x(ode.τ[end-2]) for x in Ω]
             # @show typeof(Ω_new)
-            Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], mᵪᵢ^2, mᵩ)
+            # Δ2 = get_Δ2_χ(k, α, β, Ω_new, ω, ρs[i], ode.a[end], mᵪᵢ^2, mᵩ)
             # Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
 
             if direct_out
@@ -223,7 +281,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             else
                 mkpath(ξ_dirᵢ)
                 # k is in planck unit
-                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2))
+                # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2))
+                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f))
             end
         end
         # k is in planck unit

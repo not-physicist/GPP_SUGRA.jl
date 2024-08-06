@@ -244,22 +244,22 @@ def plot_f(dn, out_suffix="", sparse=1):
             data = np.load(full_path)
             f = data["f"]
             k = data["k"]
-            Delta2 = data["Delta2"]
+            # Delta2 = data["Delta2"]
             #  print(f, k)
 
             if fn_I[i] == 1:
                 color = cmap(ms_i/max(ms))
                 #  ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, I", c=color, ls="--")
                 ax.plot(k, f, c=color, ls="--")
-                ax2.plot(k, Delta2, c=color, ls="--")
+                # ax2.plot(k, Delta2, c=color, ls="--")
             elif fn_R[i] == 1:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
-                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                # ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
-                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                # ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -533,14 +533,14 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    dn = "data/TMode-0.001/"
+    dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    # plot_f_m3_2(dn, sparse=0.5)
+    plot_f_m3_2(dn, sparse=0.5)
     #  plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)

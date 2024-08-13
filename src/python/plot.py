@@ -3,7 +3,7 @@ import matplotlib as mpl
 import numpy as np
 import os
 from os import listdir 
-from os.path import isdir, isfile, join
+from os.path import isdir, isfile, join, exists
 from glob import glob
 from pathlib import Path
 from scipy.optimize import curve_fit
@@ -89,7 +89,7 @@ def plot_background(dn):
 
     fig, ax = plt.subplots()
     ax.plot(tau, app_a)
-    ax.set_xlabel("$\eta$")
+    ax.set_xlabel(r"$\eta$")
     ax.set_ylabel("$a''/a$")
     plt.tight_layout()
     plt.savefig(out_dn + "app_a.pdf", bbox_inches="tight")
@@ -143,11 +143,12 @@ def _get_m_fn(dn, sparse=1):
         ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in fns]
     except ValueError:
         # then probably there is suffix in the file name, e.g. for specifying R and I parents
-        _fns_wo_suffix = [x.replace("_R", "").replace("_I", "") 
+        _fns_wo_suffix = [x.replace("_R", "").replace("_I", "").replace("_nosugra", "")
                               for x in fns] 
         ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in _fns_wo_suffix]
     
     # sort the lists together
+    # print(fns, ms)
     fns, ms = zip(*sorted(zip(fns, ms)))
 
     if sparse < 1:
@@ -186,21 +187,28 @@ def _get_m3_2_dir(dn, exclude=[]):
         # get only subdirectories (full path)
         dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
         dirs = [x for x in dirs if x not in exclude]
-        #  print(dirs)
+        # print(dirs)
         # get values of xi from directory name
-        m3_2s = [float(x.replace(m3_2_prefix, "")) for x in dirs]
+        m3_2s = ["0.0" if x == "nosugra" else float(x.replace(m3_2_prefix, "")) for x in dirs]
         #  print(dirs, m3_2s)
     except ValueError:
-        raise ValueError("Check the given directory!")
+        raise ValueError("Check the given directory!", dn)
+
     dirs, m3_2s = zip(*sorted(zip(dirs, m3_2s)))
+    dirs = list(dirs)
+    m3_2s = list(m3_2s)
+
+    if exists(dn + "nosugra"):
+        dirs.append("nosugra")
+        m3_2s.append(0.0)
     return dirs, m3_2s
 
 #####################################################################################
 # plotting spectrum 
 #####################################################################################
 
-# to be excluded
-DIR_TO_EXCLUDE = ['m_eff']
+# to be excluded; nosugra will be plotted separately
+DIR_TO_EXCLUDE = ['m_eff', "nosugra"]
 
 def plot_f(dn, out_suffix="", sparse=1):
     """
@@ -235,6 +243,9 @@ def plot_f(dn, out_suffix="", sparse=1):
         fig2 = plt.figure()
         ax2 = fig2.add_subplot()
 
+        fig3 = plt.figure()
+        ax3 = fig3.add_subplot()
+
         cmap = mpl.colormaps['viridis'].reversed()
         # cmap2 = mpl.colormaps['magma'].reversed()
         
@@ -244,22 +255,30 @@ def plot_f(dn, out_suffix="", sparse=1):
             data = np.load(full_path)
             f = data["f"]
             k = data["k"]
-            # Delta2 = data["Delta2"]
+            Delta2 = data["Delta2_k3"]
+            err = data["err"]
             #  print(f, k)
+            # print(k.shape, err.shape)
+            # print(ms_i, np.amin(err))
+            ax3.scatter(ms_i, np.amax(err), c="k", label="maximal")
+            ax3.scatter(ms_i, np.amin(err), c="k", label="minimal", marker="x")
 
             if fn_I[i] == 1:
                 color = cmap(ms_i/max(ms))
                 #  ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, I", c=color, ls="--")
                 ax.plot(k, f, c=color, ls="--")
-                # ax2.plot(k, Delta2, c=color, ls="--")
+                ax2.plot(k, Delta2, c=color, ls="--")
+                # ax3.plot(k, err, c=color)
             elif fn_R[i] == 1:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
-                # ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
-                ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
-                # ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -289,6 +308,18 @@ def plot_f(dn, out_suffix="", sparse=1):
         fig2.savefig(out_fn, bbox_inches="tight")
         plt.close(2)
 
+        ax3.set_xlabel(r"$m_\chi/m_\phi$")
+        ax3.set_ylabel(r"error")
+        ax3.set_xscale("log")
+        ax3.set_yscale("log")
+        ax3.spines['top'].set_visible(False)
+        ax3.spines['right'].set_visible(False)
+
+        # fig3.legend()
+        out_fn = out_dn + f"error_ξ={ξ:.2f}" + out_suffix + ".pdf"
+        fig3.savefig(out_fn, bbox_inches="tight")
+        plt.close(3)
+
 
 def plot_f_m3_2(dn, sparse=1):
     """
@@ -314,7 +345,7 @@ def plot_integrated(dn):
         f0 = data["f0"]
         ρ = data["rho"]
         n = data["n"]
-        #  print(f0, ρ, n)
+        # print(m, ρ, n)
 
         fig, ax = plt.subplots()
         ax.scatter(m, f0, label=r"$f_\chi(k\leftarrow 0) $")
@@ -404,7 +435,8 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                         color = cmap(y/max(m3_2s))
                         label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
                         ax.plot(m, ρ_s_T, color=color, label=label)
-
+                        
+                        '''
                         #  trying to fit the first part
                         popt, pcov = curve_fit(linear_f, m[m<0.1], ρ_s_T[m<0.1])
                         perr = np.sqrt(np.diag(pcov))
@@ -413,6 +445,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                         err_slopes = np.append(err_slopes, perr[0])
 
                         ax.plot(m, linear_f(m, *popt), alpha=0.5, color=color, ls="--")
+                        '''
                     else:
                         raise(ValueError("Something went wrong!"))
             else:
@@ -455,7 +488,8 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
 
     plt.savefig(out_fn, bbox_inches="tight")
     plt.close()
-
+    
+    '''
     print("Data are", m3_2s, slopes, err_slopes)
     popt, perr = curve_fit(lambda x, a, b: a*x+b, m3_2s, slopes, sigma=err_slopes, absolute_sigma=True)
     print(popt, perr)
@@ -467,6 +501,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
 
     plt.savefig(out_fn.replace("comp", "slope"), bbox_inches="tight")
     plt.close()
+    '''
 
 #####################################################################################
 # effective mass squared
@@ -533,6 +568,7 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
+    # dn = "data/TMode-0.001/"
     dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
@@ -540,8 +576,8 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.5)
-    #  plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    plot_f_m3_2(dn)
+    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

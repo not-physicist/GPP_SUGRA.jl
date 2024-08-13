@@ -117,58 +117,6 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     return true
 end
 
-#=
-function test_ode(data_dir::String=MODEL_DATA_DIR)
-    mkpath(data_dir)
-    
-    r = 0.001
-    ϕᵢ = 1.7
-    model = TMode(1, 0.965, r, ϕᵢ)
-    @show model
-    save_model_data(model, data_dir * "model.dat")
-    
-    ϕᵢ *=  model.ϕₑ
-    Hᵢ = sqrt(get_V(ϕᵢ, model) / 3.0)
-    # initial dϕdt = dϕdτ
-    dϕᵢ = get_dϕ_SR(ϕᵢ, model) / Hᵢ
-    #  @show ϕᵢ, dϕᵢ
-    u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
-
-    # parameters
-    _V(x) = get_V(x, model)
-    _dV(x) = get_dV(x, model)
-    p = (_V, _dV)
-    
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err = EOMs.solve_eom(u₀, p)
-
-    mkpath(data_dir)
-    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "H"=>H, "m_phi"=>model.mᵩ, "a_end" => 1.0, "H_end" => H[1]))
-
-end
-
-function save_m_eff(data_dir::String=MODEL_DATA_DIR*"$r/")
-    model = TMode(1, 0.965, 0.001)
-    mᵩ = model.mᵩ
-    ode = read_ode(data_dir)
-    #  a = ode.a
-
-    ξ = 0.0
-    m3_2 = [0.0, 1.0] * mᵩ
-    mᵪ = logspace(-1.3, 0.7, 10).* mᵩ
-    
-    for x in m3_2
-        dn = "$(data_dir)m_eff/m3_2=$(x/mᵩ)/"
-        mkpath(dn)
-        for y in mᵪ
-            fn = dn * "mᵪ=$(y/mᵩ).npz"
-            m_R = get_m2_eff_R(ode, model, ξ, x, y)
-            m_I = get_m2_eff_I(ode, model, ξ, x, y)
-            npzwrite(fn, Dict("tau" => ode.τ, "m2_R" => m_R, "m2_I" => m_I))
-        end
-    end
-end
-=#
-
 function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
                 num_mᵪ::Int=20, num_m32::Int=5, num_k::Int=100)
     model = TMode(1, 0.965, r, NaN)
@@ -177,6 +125,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     ode = read_ode(data_dir)
 
     k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
+    # @show k[1], k[end]
     #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
     mᵪ = SA[logspace(-1.3, 1.0, num_mᵪ).* mᵩ ...]
 
@@ -190,7 +139,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
     
-    # PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra, fn_suffix="_nosugra")
+    PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
     return true
 end
 # IMPORTANT: need to run save_eom(1.6, 0.001) before running the benchmarks

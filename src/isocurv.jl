@@ -65,9 +65,8 @@ end
 
 """
 b, c, d are indices for k, p, q
-TODO: use Integrals.jl for the numerical integration
 """
-function get_Δ2_χ(k::Vector, α::Vector, β::Vector, Ω::Vector, ω::Vector,
+function get_Δ2_dis(k::Vector, α::Vector, β::Vector, Ω::Vector, ω::Vector,
                   a4ρ::Float64, aₑ::Float64, m2::Float64, mᵩ::Float64)
     function get_inner_integrand(c::Int64, d::Int64)
         # return abs2(get_χ(α[c], β[c], Ω[c], ω[c])) * abs2(get_χ(α[d], β[d], Ω[d], ω[d]))
@@ -80,6 +79,27 @@ function get_Δ2_χ(k::Vector, α::Vector, β::Vector, Ω::Vector, ω::Vector,
         pref = aₑ^2 * m2 / a4ρ^2 * k[x]^2 / (2*π)^4
         # res[x] = pref * integrate(k, [get_inner_int(x, y) for y in eachindex(k)])
         res[x] = pref * double_trap(get_inner_integrand, 0, Inf, z->abs(k[x] - z), z->k[x] + z, k, k)
+    end
+    return res
+end
+
+
+#########################################################################################################
+# use formula with mode functions
+#########################################################################################################
+
+"""
+a, b, c are indices
+"""
+function get_Δ2_χ(k::Vector, χ::Vector, ∂χ::Vector, a4ρ::Float64, aₑ::Float64, m::Float64)
+    function get_inner_int(b::Int64, c::Int64)
+        return (k[b] * k[c] * ( abs2(∂χ[b])*abs2(∂χ[c]) + aₑ^4*m^4*abs2(χ[b])*abs2(χ[c]) + aₑ^2*m^2*(χ[b]*conj(∂χ[b])*χ[c]*conj(∂χ[c]) + conj(χ[b])*∂χ[b]*conj(χ[c])*∂χ[c])))
+    end
+    res = zeros(size(k))
+    Threads.@threads for x in eachindex(k)  # k[x] = k
+        pref = 1 / a4ρ^2 * k[x]^2 /((2π)^4)
+        # @show a4ρ
+        res[x] = pref * double_trap(get_inner_int, 0, Inf, z->abs(k[x] - z), z->k[x] + z, k, k)
     end
     return res
 end

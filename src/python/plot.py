@@ -43,10 +43,11 @@ def plot_background(dn):
 
     tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
 
+
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
 
-    fig, ax = plt.subplots(ncols=2, nrows=2)
+    fig, ax = plt.subplots(ncols=3, nrows=2)
     ax[0, 0].plot(tau, phi, c="k")
     ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
@@ -55,11 +56,11 @@ def plot_background(dn):
     #  ax[0, 0].set_xlim((0, 2e4))
     #  ax[0, 0].set_ylim((-0.01, 0.01))
 
-    ax[0, 1].plot(tau, a, c="k")
-    ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
-
-    ax[0, 1].set_xlabel(r"$\eta$")
-    ax[0, 1].set_ylabel("$a/a_i$")
+    # ax[0, 1].plot(tau, a, c="k")
+    # ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
+    #
+    # ax[0, 1].set_xlabel(r"$\eta$")
+    # ax[0, 1].set_ylabel("$a/a_i$")
 
     #  ax[1, 0].plot(tau, phi, c="k")
     #  ax[1, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
@@ -68,6 +69,17 @@ def plot_background(dn):
     #  ax[1, 0].set_ylabel("$\phi$")
     #  ax[1, 0].set_xlim([-2e6, 8e6])
     #  ax[1, 0].set_ylim([0.4, 0.6])
+
+    ax[0, 1].plot(tau, app_a - H**2 + phi_d**2, c="k")
+    ax[0, 1].set_xlabel(r"$\eta$")
+    ax[0, 1].set_ylabel("error")
+    ax[0, 1].set_yscale("log")
+    
+    ax[0, 2].plot(tau, 1/(2*a*H)**2 * app_a)
+    ax[0, 2].set_xlabel(r"$\eta$")
+    ax[0, 2].set_ylabel(r"$1/(2aH)^{-2} \cdot a''/a$")
+    ax[0, 2].set_yscale("log")
+    ax[0, 2].set_ylim((1e-2, 1))
 
     ax[1, 0].plot(tau, H, c="k")
     ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
@@ -83,6 +95,7 @@ def plot_background(dn):
     ax[1, 1].set_xlabel(r"$\eta$")
     ax[1, 1].set_ylabel("$a/a_i$")
     ax[1, 1].set_yscale("log")
+    
 
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
@@ -125,7 +138,7 @@ def _get_xi_dn(dn):
     return dirs, ξs
 
 
-def _get_m_fn(dn, sparse=1):
+def _get_m_fn(dn, sparse=1.0):
     """
     get all file names for different mᵪ's and their numerical values
     taking into account some files can have _R and _I suffixes
@@ -151,7 +164,7 @@ def _get_m_fn(dn, sparse=1):
     # print(fns, ms)
     fns, ms = zip(*sorted(zip(fns, ms)))
 
-    if sparse < 1:
+    if sparse < 1 and "nosugra" not in dn:
         _skip = int(1/sparse)
         # have to ensure having both fields
         _fns_R = [x for x in fns if "_R" in x][::_skip]
@@ -210,7 +223,7 @@ def _get_m3_2_dir(dn, exclude=[]):
 # to be excluded; nosugra will be plotted separately
 DIR_TO_EXCLUDE = ['m_eff', "nosugra"]
 
-def plot_f(dn, out_suffix="", sparse=1):
+def plot_f(dn, out_suffix="", sparse=1.0):
     """
     plot f's stored in directory dn 
     assumes the following file structure
@@ -236,7 +249,6 @@ def plot_f(dn, out_suffix="", sparse=1):
         fn_R = [1 if "_R" in x else 0 for x in fns]
         fn_I = [1 if "_I" in x else 0 for x in fns]
         
-        
         fig = plt.figure()
         ax = fig.add_subplot()
 
@@ -245,6 +257,9 @@ def plot_f(dn, out_suffix="", sparse=1):
 
         fig3 = plt.figure()
         ax3 = fig3.add_subplot()
+
+        fig4 = plt.figure()
+        ax4 = fig4.add_subplot()
 
         cmap = mpl.colormaps['viridis'].reversed()
         # cmap2 = mpl.colormaps['magma'].reversed()
@@ -255,9 +270,10 @@ def plot_f(dn, out_suffix="", sparse=1):
             data = np.load(full_path)
             f = data["f"]
             k = data["k"]
-            Delta2 = data["Delta2_k3"]
+            Delta2 = data["Delta2"]
+            Delta2_beta = data["Delta2_beta"]
             err = data["err"]
-            #  print(f, k)
+            # print(ms_i, k, f)
             # print(k.shape, err.shape)
             # print(ms_i, np.amin(err))
             ax3.scatter(ms_i, np.amax(err), c="k", label="maximal")
@@ -267,18 +283,24 @@ def plot_f(dn, out_suffix="", sparse=1):
                 color = cmap(ms_i/max(ms))
                 #  ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, I", c=color, ls="--")
                 ax.plot(k, f, c=color, ls="--")
-                ax2.plot(k, Delta2, c=color, ls="--")
+                # ax2.plot(k, Delta2, c=color, ls="--")
                 # ax3.plot(k, err, c=color)
+                ax4.plot(k, f*k**3, c=color, ls="--")
+
             elif fn_R[i] == 1:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
                 # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
-                ax.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
                 # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
         Path(out_dn).mkdir(parents=True, exist_ok=True)
@@ -319,6 +341,17 @@ def plot_f(dn, out_suffix="", sparse=1):
         out_fn = out_dn + f"error_ξ={ξ:.2f}" + out_suffix + ".pdf"
         fig3.savefig(out_fn, bbox_inches="tight")
         plt.close(3)
+
+        ax4.set_xlabel(r"$k/(a_e m_\phi)$")
+        ax4.set_ylabel(r"$ |\beta|^2 \cdot (k/ a_e m_\phi)^3$")
+        ax4.set_xscale("log")
+        ax4.set_yscale("log")
+        ax4.spines['top'].set_visible(False)
+        ax4.spines['right'].set_visible(False)
+
+        fig4.legend()
+        fig4.savefig(out_dn + f"f_k3_ξ={ξ:.2f}" + out_suffix + ".pdf", bbox_inches="tight")
+        plt.close(4)
 
 
 def plot_f_m3_2(dn, sparse=1):
@@ -576,8 +609,8 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn)
-    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    # plot_f_m3_2(dn)
+    # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

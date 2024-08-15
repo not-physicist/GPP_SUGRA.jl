@@ -5,7 +5,7 @@ module Isocurvature
 using LinearInterpolations, MultiQuad, NumericalIntegration
 using ..Commons
 
-export get_Δ2, get_Δ2_χ
+export get_Δ2, get_Δ2_χ, get_Δ2_only_β, get_Δ2_dis
 
 # const INTERP_TYPE = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{Float64}, Symbol}
 # const INTERP_TYPE_COMP = LinearInterpolations.Interpolate{typeof(LinearInterpolations.combine), Tuple{Vector{Float64}}, Vector{ComplexF64}, Symbol}
@@ -66,8 +66,7 @@ end
 """
 b, c, d are indices for k, p, q
 """
-function get_Δ2_dis(k::Vector, α::Vector, β::Vector, Ω::Vector, ω::Vector,
-                  a4ρ::Float64, aₑ::Float64, m2::Float64, mᵩ::Float64)
+function get_Δ2_dis(k::Vector, α::Vector, β::Vector, Ω::Vector, a4ρ::Float64, aₑ::Float64, m2::Float64)
     function get_inner_integrand(c::Int64, d::Int64)
         # return abs2(get_χ(α[c], β[c], Ω[c], ω[c])) * abs2(get_χ(α[d], β[d], Ω[d], ω[d]))
         return k[c] * k[d] * (abs2(β[c]) * abs2(α[d]) + real( conj(α[c])*β[c]*α[d]*conj(β[d])*exp(2.0im*Ω[c] - 2.0im*Ω[d])) )
@@ -98,6 +97,23 @@ function get_Δ2_χ(k::Vector, χ::Vector, ∂χ::Vector, a4ρ::Float64, aₑ::F
     res = zeros(size(k))
     Threads.@threads for x in eachindex(k)  # k[x] = k
         pref = 1 / a4ρ^2 * k[x]^2 /((2π)^4)
+        # @show a4ρ
+        res[x] = pref * double_trap(get_inner_int, 0, Inf, z->abs(k[x] - z), z->k[x] + z, k, k)
+    end
+    return res
+end
+
+"""
+a, b, c are indices 
+only consider β^2 β^2 term
+"""
+function get_Δ2_only_β(k::Vector, f::Vector, a4ρ::Float64, aₑ::Float64, m::Float64)
+    function get_inner_int(b::Int64, c::Int64)
+        return k[b] * k[c] * (f[b]*f[c])
+    end
+    res = zeros(size(k))
+    Threads.@threads for x in eachindex(k)  # k[x] = k
+        pref = 2*aₑ^2 / a4ρ^2 * k[x]^2 /((2π)^4)
         # @show a4ρ
         res[x] = pref * double_trap(get_inner_int, 0, Inf, z->abs(k[x] - z), z->k[x] + z, k, k)
     end

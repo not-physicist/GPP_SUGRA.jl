@@ -1,9 +1,12 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt 
 
 from os import listdir 
 from os.path import isdir, join, isfile
 from pathlib import Path
+
+cmap = mpl.colormaps['magma']
 
 # dn_root = data/TMode-0.001-benchmark/m3_2=0.0/f_ξ=0.0/
 # dn1 = dn_root + "mᵪ=0.05011872336272722_I/"
@@ -27,8 +30,12 @@ for dn in dns:
     
     fig, (ax1, ax2) = plt.subplots(ncols=2)
 
+    k_array = [float(fn.replace("k=", "").replace(".npz", "")) for fn in fns]
+    k_max, k_min = np.amax(k_array), np.amin(k_array)
+
     for fn in fns:
         k = float(fn.replace("k=", "").replace(".npz", ""))
+        color = cmap( (np.log(k_max) - np.log(k))/(np.log(k_max) - np.log(k_min)) )
         path = join(dn, fn)
         data = np.load(path)
         f = data["f"]

@@ -137,27 +137,27 @@ function get_diff_eq_mode(u, ω2, t)
     χ = u[1]
     ∂χ = u[2]
 
-    dydt = @SVector [∂χ, -ω2(t)*χ]
-    return dydt
+    return @SVector [∂χ, -ω2(t)*χ]
 end
 
 function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearInterpolations.Interpolate}
     get_ω2 = x -> k^2 + get_m2(x)
-    ωₑ = sqrt(get_ω2(t_span[2])+0.0im)
     ω₀ = sqrt(get_ω2(t_span[1])+0.0im)
+    ωₑ = sqrt(get_ω2(t_span[2])+0.0im)
 
     # u₀ = @SVector [1/sqrt(2*k), -1.0im*k/sqrt(2*k)] 
     u₀ = @SVector [1/sqrt(2*ω₀), -1.0im*ω₀/sqrt(2*ω₀)] 
 
     prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, get_ω2)
-    sol = solve(prob, Vern9(), reltol=1e-9, abstol=1e-12, save_everystep=false, maxiters=1e8)
+    # sol = solve(prob, Vern9(), reltol=1e-9, abstol=1e-12, save_everystep=false, maxiters=1e8)
+    sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-6, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     χₑ = sol[1, end]
     ∂χₑ = sol[2, end]
 
     # wronskian
     err = 1 + 1.0im * (χₑ*conj(∂χₑ) - conj(χₑ) * ∂χₑ)
-    # @show err
+
     return χₑ, ∂χₑ, ωₑ, err
 end
 
@@ -165,9 +165,7 @@ end
 f = |β|^2 from mode functions χₖ, ∂χₖ
 """
 function _get_f(ω, χ, ∂χ)
-    f = abs2(ω * χ - 1.0im * ∂χ)/(2*ω)
-    # f = ω/2 * abs2(χ) + abs2(∂χ)/(2*ω) + 0.5im * 1.0im
-    return f
+    return abs2(ω * χ - 1.0im * ∂χ)/(2*ω)
 end
 
 function solve_diff_mode(k::Vector, t_span::Vector, get_m2::T) where {T <: LinearInterpolations.Interpolate}
@@ -183,7 +181,7 @@ function solve_diff_mode(k::Vector, t_span::Vector, get_m2::T) where {T <: Linea
         @inbounds f[i] = _get_f(ω[i], χ[i], ∂χ[i])
     end
     
-    # @show f, ω
+    # @show f
     return f, ω, χ, ∂χ, err
 end
 
@@ -198,7 +196,7 @@ function solve_diff_mode_all(k::Real, t_span::Vector, get_m2::T) where {T <: Lin
     u₀ = @SVector [1/sqrt(2*ω₀), -1.0im*ω₀/sqrt(2*ω₀)] 
 
     prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, get_ω2)
-    sol = solve(prob, Tsit5(), reltol=1e-9, abstol=1e-12, save_everystep=true, maxiters=1e8)
+    # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-6, abstol=1e-9, save_everystep=true, maxiters=1e8)
     ω = [sqrt(get_ω2(x) + 0.0im) for x in sol.t]
     return sol.t, sol[1, :], sol[2, :], ω
 end
@@ -206,6 +204,9 @@ end
 function solve_diff_mode_all(k::Vector, t_span::Vector, get_m2::T, dn::String) where {T <: LinearInterpolations.Interpolate}
     ω = zeros(ComplexF64, size(k))
     f = zeros(size(k))
+    χ_k = zeros(ComplexF64, size(k))
+    ∂χ_k = zeros(ComplexF64, size(k))
+    err_k = zeros(size(k))
 
     @inbounds Threads.@threads for i in eachindex(k)
         @inbounds res = solve_diff_mode_all(k[i], t_span, get_m2)
@@ -216,7 +217,7 @@ function solve_diff_mode_all(k::Vector, t_span::Vector, get_m2::T, dn::String) w
         # @show sizeof(res[1]), sizeof(res[2])
         
         f_all = @. _get_f(res[4], res[2], res[3])
-        err = 1 .+ 1.0im .* (χ.*conj.(∂χ) .- conj.(χ) .* ∂χ)
+        err = abs.(1 .+ 1.0im .* (χ.*conj.(∂χ) .- conj.(χ) .* ∂χ))
         
         fn = dn * "/k=$(k[i]).npz"
         @show fn
@@ -225,11 +226,13 @@ function solve_diff_mode_all(k::Vector, t_span::Vector, get_m2::T, dn::String) w
 
         f[i] = f_all[end]
         ω[i] = res[4][end]
+        err_k[i] = findmax(err)[1]
+        χ_k[i] = χ[end]
+        ∂χ_k[i] = ∂χ[end]
     end
     
-    # @show f, ω
-    return f, ω
-    # return χ, ∂χ
+    # @show f
+    return f, ω, χ_k, ∂χ_k, err_k
 end
 
 ###########################################################################
@@ -288,7 +291,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
-            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff, extrapolate=LinearInterpolations.Constant(0.0))
+            get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
             # get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
             # get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
             # get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
@@ -309,7 +312,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # f = abs2.(β)
             
             f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
-            # f, ω = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
+            # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
             # @show f
 
             # take the ρ at the end, use last m2_eff
@@ -321,17 +324,17 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # interpolate for k
             # Ω_new = [x(ode.τ[end-2]) for x in Ω]
             # @show typeof(Ω_new)
-            # Δ2 = get_Δ2_dis(k, α, β, Ω_new, ω, ρs[i], ode.a[end], mᵪᵢ^2, mᵩ)
+            # Δ2 = get_Δ2_dis(k, α, β, Ω_new, ρs[i], ode.a[end], mᵪᵢ^2)
             # Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
             Δ2 = get_Δ2_χ(k, χ, ∂χ, ρs[i], ode.a[end], mᵪᵢ)
-            Δ2_k3 = @. k^3 / (2*π^2) / ns[i] 
+            Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
                 # k is in planck unit
-                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "Delta2_k3"=>Δ2_k3, "err"=>err))
+                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "Delta2_beta"=>Δ2_β, "err"=>err))
                 # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f))
             end
         end

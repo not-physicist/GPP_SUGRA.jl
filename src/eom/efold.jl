@@ -3,7 +3,7 @@ Solving EOM in number of efolds
 """
 module EFolds
 
-using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging
+using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging, TerminalLoggers
 
 #  using ..Helpers: get_others
 
@@ -43,7 +43,7 @@ function solve_eom(u₀::SVector{3, Float64},
 
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 10.0], p)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, RK4(), reltol=1e-6, abstol=1e-8, callback=cb, dtmax=0.001)
+    sol = solve(prob, Tsit5(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.001, progress = true)
      
     N = sol.t
     ϕ = sol[1, :]

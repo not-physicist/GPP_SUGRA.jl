@@ -3,7 +3,7 @@ solving EOM in conformal time
 """
 module Conformals
 
-using StaticArrays, OrdinaryDiffEq, TerminalLoggers
+using StaticArrays, OrdinaryDiffEq
 
 #  using ..Helpers: get_others
 
@@ -34,7 +34,7 @@ function solve_eom(u₀::SVector{3, Float64},
                    tspan::Tuple{Float64, Float64}, 
                    p::Tuple{Function, Function})
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false, progress = true)
+    sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
     #  sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-9, abstol=1e-10, save_start=false)
     
     τ= sol.t

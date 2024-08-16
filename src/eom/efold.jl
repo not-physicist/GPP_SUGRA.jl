@@ -3,7 +3,7 @@ Solving EOM in number of efolds
 """
 module EFolds
 
-using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging, TerminalLoggers
+using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging
 
 #  using ..Helpers: get_others
 
@@ -37,13 +37,13 @@ assume u₀ in efold units
 function solve_eom(u₀::SVector{3, Float64}, 
                    p::Tuple{Function, Function})
     # defines when to terminate integrator (at ϵ1 = 0.1)
-    condition(u, t, integrator) = u[2]^2 / (2) <= 0.1
+    condition(u, t, integrator) = u[2]^2 / (2) <= 0.2
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition,affect!)
 
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 10.0], p)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, Tsit5(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.001, progress = true)
+    sol = solve(prob, Tsit5(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.001)
      
     N = sol.t
     ϕ = sol[1, :]

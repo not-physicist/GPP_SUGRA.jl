@@ -8,17 +8,18 @@ from pathlib import Path
 
 cmap = mpl.colormaps['magma']
 
-# dn_root = data/TMode-0.001-benchmark/m3_2=0.0/f_ξ=0.0/
+dn_root = "data/TMode-0.001-benchmark/m3_2=0.0/f_ξ=0.0/"
+# dn_root = "data/TMode-0.001-benchmark/m3_2=2.0/f_ξ=0.0/"
 # dn1 = dn_root + "mᵪ=0.05011872336272722_I/"
-# dn2 = dn_root + "mᵪ=2.6607250597988097_I/"
-# dn3 = dn_root + "mᵪ=10.0_I/"
+# dn2 = dn_root + "mᵪ=0.15848931924611134_I/"
+dn3 = dn_root + "mᵪ=5.011872336272722_I/"
 
-dn_root = "data/TMode-0.001-benchmark/nosugra/f_ξ=0.0/"
-dn1 = dn_root + "mᵪ=0.05011872336272722/"
-dn2 = dn_root + "mᵪ=0.7079457843841379/"
-dn3 = dn_root + "mᵪ=10.0/"
+# dn_root = "data/TMode-0.001-benchmark/nosugra/f_ξ=0.0/"
+# dn1 = dn_root + "mᵪ=0.05011872336272722/"
+# dn2 = dn_root + "mᵪ=1.5848931924611138/"
+# dn3 = dn_root + "mᵪ=5.011872336272722/"
 
-dns = [dn1, dn2, dn3]
+dns = [dn3]
 
 for dn in dns:
     fns = [x for x in listdir(dn) if isfile(join(dn, x))]
@@ -42,19 +43,20 @@ for dn in dns:
         eta = data["eta"]
         err = data["err"]
         # print(len(f), len(eta))
-        ax1.plot(eta, f, label=rf"$k={k:.2e}$")
-        ax2.plot(eta, err, label=rf"$k={k:.2e}$")
+        ax1.plot(eta[::10], f[::10], label=rf"$k={k:.2e}$", color=color)
+        ax2.plot(eta[::10], err[::10], label=rf"$k={k:.2e}$", color=color)
 
     # ax.set_xscale("log")
     ax1.set_yscale("log")
     ax1.set_xlabel(r"$\eta$")
     ax1.set_ylabel(r"$|\beta_k|^2$")
-    plt.legend()
+    ax1.set_ylim((1e-14, 1e-2))
+    plt.legend(loc=1)
     
     ax2.set_yscale("log")
     ax2.set_xlabel(r"$\eta$")
     ax2.set_ylabel(r"error")
-    plt.legend()
+    plt.legend(loc=1)
    
     out_dn = dn.replace("data", "figs")
     Path(out_dn).mkdir(parents=True, exist_ok=True)

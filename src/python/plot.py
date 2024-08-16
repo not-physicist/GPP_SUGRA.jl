@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
+from scipy.ndimage import gaussian_filter1d
+
 import os
 from os import listdir 
 from os.path import isdir, isfile, join, exists
@@ -9,6 +9,8 @@ from pathlib import Path
 from scipy.optimize import curve_fit
 import shutil
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
@@ -43,11 +45,10 @@ def plot_background(dn):
 
     tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
 
-
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
 
-    fig, ax = plt.subplots(ncols=3, nrows=2)
+    fig, ax = plt.subplots(ncols=2, nrows=2)
     ax[0, 0].plot(tau, phi, c="k")
     ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
@@ -75,11 +76,11 @@ def plot_background(dn):
     ax[0, 1].set_ylabel("error")
     ax[0, 1].set_yscale("log")
     
-    ax[0, 2].plot(tau, 1/(2*a*H)**2 * app_a)
-    ax[0, 2].set_xlabel(r"$\eta$")
-    ax[0, 2].set_ylabel(r"$1/(2aH)^{-2} \cdot a''/a$")
-    ax[0, 2].set_yscale("log")
-    ax[0, 2].set_ylim((1e-2, 1))
+    # ax[0, 2].plot(tau, 1/(2*a*H)**2 * app_a, color="k")
+    # ax[0, 2].set_xlabel(r"$\eta$")
+    # ax[0, 2].set_ylabel(r"$1/(2aH)^{-2} \cdot a''/a$")
+    # ax[0, 2].set_yscale("log")
+    # ax[0, 2].set_ylim((1e-2, 10))
 
     ax[1, 0].plot(tau, H, c="k")
     ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
@@ -101,7 +102,8 @@ def plot_background(dn):
     plt.savefig(out_fn, bbox_inches="tight")
 
     fig, ax = plt.subplots()
-    ax.plot(tau, app_a)
+    ax.plot(tau, 1/(a*H)**2 * app_a, c="k")
+    # ax.plot(tau, gaussian_filter1d(app_a, 10), c="tab:orange")
     ax.set_xlabel(r"$\eta$")
     ax.set_ylabel("$a''/a$")
     plt.tight_layout()

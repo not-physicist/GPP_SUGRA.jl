@@ -104,6 +104,7 @@ def plot_background(dn):
     fig, ax = plt.subplots()
     ax.plot(tau, 1/(a*H)**2 * app_a, c="k")
     # ax.plot(tau, gaussian_filter1d(app_a, 10), c="tab:orange")
+    ax.set_xlim((-1000, 1000))
     ax.set_xlabel(r"$\eta$")
     ax.set_ylabel("$a''/a$")
     plt.tight_layout()

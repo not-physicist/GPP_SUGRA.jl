@@ -17,6 +17,8 @@ function friedmann_eq(u, p, t)
     ϕ = u[1]
     dϕ = u[2]
     a = u[3]
+    # H = u[4]
+    # @show ϕ, H
 
     get_V = p[1]
     get_dV = p[2]
@@ -34,15 +36,19 @@ function solve_eom(u₀::SVector{3, Float64},
                    tspan::Tuple{Float64, Float64}, 
                    p::Tuple{Function, Function})
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
-    #  sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-9, abstol=1e-10, save_start=false)
+    # sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
+    sol = solve(prob, Vern9(), maxiters=1e8, reltol=1e-15, abstol=1e-18, save_start=true)
     
     τ= sol.t
     ϕ = sol[1, :]
     dϕdτ = sol[2, :]
     a = sol[3, :]
-       
-    return τ, ϕ, dϕdτ, a
+
+    # normal Hubble
+    H = @. sqrt(1 / 3 * (dϕdτ^2 / 2 + a^2 * p[1](ϕ)))/a
+    @show H[1:10]
+
+    return τ, ϕ, dϕdτ, a, H
 end
 
 end

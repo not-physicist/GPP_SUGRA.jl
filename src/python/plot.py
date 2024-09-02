@@ -15,6 +15,8 @@ from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
+mpl = 2.44e18 # reduced planck
+
 #####################################################################################
 # Background
 #####################################################################################
@@ -44,13 +46,14 @@ def plot_background(dn):
     Path(out_dn).mkdir(parents=True, exist_ok=True)
 
     tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
+    # print(H[1:10], H[-10:-1])
 
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
 
     fig, ax = plt.subplots(ncols=2, nrows=2)
     ax[0, 0].plot(tau, phi, c="k")
-    ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
+    # ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
     ax[0, 0].set_xlabel(r"$\eta$")
     ax[0, 0].set_ylabel(r"$\phi$")
@@ -71,7 +74,7 @@ def plot_background(dn):
     #  ax[1, 0].set_xlim([-2e6, 8e6])
     #  ax[1, 0].set_ylim([0.4, 0.6])
 
-    ax[0, 1].plot(tau, app_a - H**2 + phi_d**2, c="k")
+    ax[0, 1].plot(tau, err, c="k")
     ax[0, 1].set_xlabel(r"$\eta$")
     ax[0, 1].set_ylabel("error")
     ax[0, 1].set_yscale("log")
@@ -82,16 +85,17 @@ def plot_background(dn):
     # ax[0, 2].set_yscale("log")
     # ax[0, 2].set_ylim((1e-2, 10))
 
-    ax[1, 0].plot(tau, H, c="k")
-    ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
+    # ax[1, 0].plot(tau, H, c="k")
+    ax[1, 0].plot(tau, H*mpl, c="k")
+    # ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
     ax[1, 0].set_xlabel(r"$\eta$")
-    ax[1, 0].set_ylabel("$H$")
+    ax[1, 0].set_ylabel("$H / GeV$")
     ax[1, 0].set_yscale("log")
     #  ax[1, 0].set_xlim((tau[0], 0))
     #  ax[1, 0].set_ylim((1e-6, 4e-6))
 
     ax[1, 1].plot(tau, a, c="k")
-    ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
+    # ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
 
     ax[1, 1].set_xlabel(r"$\eta$")
     ax[1, 1].set_ylabel("$a/a_i$")
@@ -101,12 +105,16 @@ def plot_background(dn):
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
 
-    fig, ax = plt.subplots()
-    ax.plot(tau, 1/(a*H)**2 * app_a, c="k")
-    # ax.plot(tau, gaussian_filter1d(app_a, 10), c="tab:orange")
-    ax.set_xlim((-1000, 1000))
-    ax.set_xlabel(r"$\eta$")
-    ax.set_ylabel("$a''/a$")
+    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    ax1.plot(tau, -6*app_a/a**2*mpl**2, c="k")
+    ax1.set_xlabel(r"$\eta$")
+    ax1.set_ylabel("$R/GeV^2$")
+
+    ax2.plot(tau, -6*app_a/a**2*mpl**2, c="k")
+    ax1.set_xlabel(r"$\eta$")
+    ax1.set_ylabel("$R/GeV^2$")
+    ax2.set_xlim((25000, 50000))
+    ax2.set_ylim((-1e26, 1e26))
     plt.tight_layout()
     plt.savefig(out_dn + "app_a.pdf", bbox_inches="tight")
 
@@ -166,9 +174,9 @@ def _get_m_fn(dn, sparse=1.0):
     # sort the lists together
     # print(fns, ms)
     fns, ms = zip(*sorted(zip(fns, ms)))
-
+    
+    _skip = int(1/sparse)
     if sparse < 1 and "nosugra" not in dn:
-        _skip = int(1/sparse)
         # have to ensure having both fields
         _fns_R = [x for x in fns if "_R" in x][::_skip]
         _fns_I = [x for x in fns if "_I" in x][::_skip]
@@ -184,7 +192,14 @@ def _get_m_fn(dn, sparse=1.0):
         ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in _fns_wo_suffix]
         fns, ms = zip(*sorted(zip(fns, ms)))
 
-    return fns, ms
+        return fns, ms
+    elif sparse < 1 and "nosugra" in dn:
+        _fns_nosugra = [x for x in fns][::_skip]
+        # print(_fns_nosugra)
+        ms = [float(x.replace(m_chi_prefix, "").replace(".npz", "")) for x in _fns_nosugra]
+        fns, ms = zip(*sorted(zip(_fns_nosugra, ms)))
+
+        return fns, ms
 
 
 def _get_integrated_fn(dn):
@@ -217,6 +232,8 @@ def _get_m3_2_dir(dn, exclude=[]):
     if exists(dn + "nosugra"):
         dirs.append("nosugra")
         m3_2s.append(0.0)
+
+    # print(dirs)
     return dirs, m3_2s
 
 #####################################################################################
@@ -244,6 +261,7 @@ def plot_f(dn, out_suffix="", sparse=1.0):
     
     for (ξ, d_i) in zip(ξs, dirs):
         fns, ms = _get_m_fn(join(dn, d_i), sparse=sparse)
+        # print(fns, ms)
         #  if not sparse:
 
         # arrays to store if th file corresponds to R/I field
@@ -605,14 +623,15 @@ def cp_model_data(dn):
 if __name__ == "__main__":
     # TMode
     # dn = "data/TMode-0.001/"
-    dn = "data/TMode-0.001-benchmark/"
+    dn = "data/TMode-0.0035/"
+    # dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    # plot_f_m3_2(dn)
+    # plot_f_m3_2(dn, sparse=0.5)
     # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)

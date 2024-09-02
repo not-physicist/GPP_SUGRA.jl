@@ -68,20 +68,21 @@ function solve_eom(u₀::SVector, p::Tuple)
     return (get_others(τ, ϕ, dϕdτ, a, p[1])..., aₑ, Hₑ)
 end
 
-function solve_eom_conf_only(u₀::SVector, p::Tuple, τᵢ::Float64)
-    tspan = (τᵢ, -τᵢ)
+function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
     τ, ϕ, dϕdτ, a, H = Conformals.solve_eom(u₀, tspan, p)
     τ, ϕ, dϕdτ, a, app_a, H, err = get_others(τ, ϕ, dϕdτ, a, H, p[1])
     # @show size(τ), size(H), size(a)
     # @show size(diff(H)), size(diff(τ))
-
     
     # first slow roll
-    @show size(H), size(τ), size(a)
+    # @show size(H), size(τ), size(a)
     ϵ₁ = - diff(H) ./ diff(τ) ./ (a .* H.^2)[1:end-1]
+    @show ϵ₁[1:10], ϵ₁[end-10:end]
     end_index = findfirst(x -> abs(x) < 0.1, ϵ₁)
+    # @show a, end_index
     aₑ = a[end_index]
     Hₑ = H[end_index]
+    @info "aₑHₑ=", aₑ*Hₑ
 
     return (τ, ϕ, dϕdτ, a, app_a, H, err, aₑ, Hₑ)
 end

@@ -20,13 +20,13 @@ const MODEL_NAME="TMode"
 const MODEL_DATA_DIR="data/$MODEL_NAME-"
 
 function get_V(ϕ::Real, model::TMode)
-    x = ϕ / (sqrt(6) * model.α)
+    x = ϕ / (sqrt(6 * model.α))
     return model.V₀ * tanh(x)^(2*model.n)
 end
 
 function get_dV(ϕ::Real, model::TMode)
-    x = ϕ / (sqrt(6) * model.α)
-    return sqrt(2/3) / model.α * model.V₀ * sech(x)^2 * tanh(x)^(2*model.n-1)
+    x = ϕ / (sqrt(6 * model.α))
+    return 2*model.n / sqrt(6*model.α) * model.V₀ * sech(x)^2 * tanh(x)^(2*model.n-1)
 end
 
 """
@@ -89,28 +89,35 @@ function get_m2_no_sugra(ode::ODEData, mᵪ::Real, ξ::Real)
     return m2
 end
 
-function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/")
+"""
+ϕᵢ: in unit of ϕₑ (field value at end of slow roll)
+init_time_mul: initial (conformal) time multiplicant; needs to make the simulation run longer for large r 
+"""
+function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/", init_time_mul::Float64=1.0, span_asym::Float64=1.0)
     mkpath(data_dir)
 
     model = TMode(1, 0.965, r, ϕᵢ)
     @info dump_struct(model)
     #  @info model
+    @info data_dir
     save_model_data(model, data_dir * "model.dat")
 
     # initial conditions
     ϕᵢ *= model.ϕₑ
     dϕᵢ = get_dϕ_SR(ϕᵢ, model)
-    @debug ϕᵢ, dϕᵢ
+    Hinf = get_Hinf(model)
+    @info "Initial conditions are: ", ϕᵢ, dϕᵢ, Hinf
     u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
-    #  τᵢ = - 1 / get_Hinf(model)
-    #  tspan = (τᵢ, -τᵢ)
+    τᵢ = - init_time_mul / get_Hinf(model)
+    tspan = (τᵢ, - span_asym*τᵢ)
 
     # parameters
     _V(x) = get_V(x, model)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    τ, ϕ, dϕ, a, ap, app, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
+    # τ, ϕ, dϕ, a, ap, app, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
+    τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom_conf_only(u₀, p, tspan)
 
     mkpath(data_dir)
     npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
@@ -124,7 +131,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-3.0, 1.0, num_k) * ode.aₑ * model.mᵩ 
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
     # @show k[1], k[end]
     #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
     mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
@@ -143,7 +150,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     return true
 end
 const dn_bm = "data/TMode-0.001-benchmark/"
-save_eom_benchmark() = save_eom(1.65, 0.001, dn_bm)
+save_eom_benchmark() = save_eom(1.7, 0.001, dn_bm)
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10, dn_bm)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100, dn_bm)
 

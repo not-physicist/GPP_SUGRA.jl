@@ -8,10 +8,16 @@ from pathlib import Path
 
 cmap = mpl.colormaps['magma']
 
+fn_ode = "data/TMode-0.001/ode.npz"
+data_ode = np.load(fn_ode)
+tau = data_ode["tau"]
+a = data_ode["a"]
+get_a = lambda x: np.interp(x, tau, a)
+
 dn_root = "data/TMode-0.001-benchmark/m3_2=0.0/f_ξ=0.0/"
 # dn_root = "data/TMode-0.001-benchmark/m3_2=2.0/f_ξ=0.0/"
-# dn1 = dn_root + "mᵪ=0.05011872336272722_I/"
-# dn2 = dn_root + "mᵪ=0.15848931924611134_I/"
+dn1 = dn_root + "mᵪ=0.05011872336272722_I/"
+dn2 = dn_root + "mᵪ=0.15848931924611134_I/"
 dn3 = dn_root + "mᵪ=5.011872336272722_I/"
 
 # dn_root = "data/TMode-0.001-benchmark/nosugra/f_ξ=0.0/"
@@ -19,9 +25,10 @@ dn3 = dn_root + "mᵪ=5.011872336272722_I/"
 # dn2 = dn_root + "mᵪ=1.5848931924611138/"
 # dn3 = dn_root + "mᵪ=5.011872336272722/"
 
-dns = [dn3]
+dns = [dn1, dn2, dn3]
 
 for dn in dns:
+
     fns = [x for x in listdir(dn) if isfile(join(dn, x))]
     
     # read out mᵪ
@@ -29,7 +36,7 @@ for dn in dns:
     if len(m) == 1:
         m = float(m[0].replace("mᵪ=", "").replace("_R", "").replace("_I", ""))
     
-    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
 
     k_array = [float(fn.replace("k=", "").replace(".npz", "")) for fn in fns]
     k_max, k_min = np.amax(k_array), np.amin(k_array)
@@ -42,21 +49,33 @@ for dn in dns:
         f = data["f"]
         eta = data["eta"]
         err = data["err"]
+        chi = data["chi"]
         # print(len(f), len(eta))
-        ax1.plot(eta[::10], f[::10], label=rf"$k={k:.2e}$", color=color)
-        ax2.plot(eta[::10], err[::10], label=rf"$k={k:.2e}$", color=color)
+
+        ax1.plot(eta[::10], np.real(f[::10]), label=rf"$k={k:.2e}$", color=color)
+        ax2.plot(eta[::10], np.abs(chi[::10])**2 * get_a(eta[::10]), label=rf"$k={k:.2e}$", color=color)
+        ax3.plot(eta[::10], err[::10], label=rf"$k={k:.2e}$", color=color)
 
     # ax.set_xscale("log")
     ax1.set_yscale("log")
     ax1.set_xlabel(r"$\eta$")
     ax1.set_ylabel(r"$|\beta_k|^2$")
-    ax1.set_ylim((1e-14, 1e-2))
-    plt.legend(loc=1)
-    
+    ax1.set_ylim((1e-14, 1e0))
+    # plt.legend(loc=1)
+ 
     ax2.set_yscale("log")
     ax2.set_xlabel(r"$\eta$")
-    ax2.set_ylabel(r"error")
-    plt.legend(loc=1)
+    ax2.set_ylabel(r"$a |\chi_k|^2$")
+    ax2.set_ylim((1e4, 2e4))
+   
+    ax3.set_yscale("log")
+    ax3.set_xlabel(r"$\eta$")
+    ax3.set_ylabel(r"error")
+    # plt.legend(loc=1)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    k_array = [float(x.replace("$", "").replace("k=", "")) for x in labels]
+    k_array, handles, labels = map(list, zip(*sorted(zip(k_array, handles, labels))))
+    plt.legend(handles, labels, loc=4)
    
     out_dn = dn.replace("data", "figs")
     Path(out_dn).mkdir(parents=True, exist_ok=True)

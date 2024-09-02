@@ -36,8 +36,8 @@ function solve_eom(u₀::SVector{3, Float64},
                    tspan::Tuple{Float64, Float64}, 
                    p::Tuple{Function, Function})
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    # sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
-    sol = solve(prob, Vern9(), maxiters=1e8, reltol=1e-15, abstol=1e-18, save_start=true)
+    sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
+    # sol = solve(prob, Vern9(), maxiters=1e8, reltol=1e-15, abstol=1e-18, save_start=true)
     
     τ= sol.t
     ϕ = sol[1, :]

@@ -149,7 +149,7 @@ function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearI
     u₀ = @SVector [1/sqrt(2*ω₀), -1.0im*ω₀/sqrt(2*ω₀)] 
 
     prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, get_ω2)
-    sol = solve(prob, Vern9(), reltol=1e-9, abstol=1e-12, save_everystep=false, maxiters=1e8)
+    sol = solve(prob, Vern9(), reltol=1e-12, abstol=1e-15, save_everystep=false, maxiters=1e8)
     # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-6, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     χₑ = sol[1, end]
@@ -313,8 +313,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             # @show err
             # f = abs2.(β)
             
-            # f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
-            f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
+            f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
+            # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
             # @show f
 
             # take the ρ at the end, use last m2_eff

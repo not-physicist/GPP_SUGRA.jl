@@ -47,38 +47,40 @@ function solve_eom(u₀::SVector, p::Tuple)
     τ1 = τ1 .- τ1[end]
     # @show τ1[end-10:end] ϕ1[end-10:end]
     # @show size(get_others(τ1, ϕ1, dϕdτ1, a1, p[1])[6])
+    # return (get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])..., aₑ, Hₑ)
 
     # start with τ = -1/H is ok
     # @info τ1[1], -1/Hₑ
 
     dϕdτ_SR = -a1[end]*p[2](ϕ1[end])/sqrt(3*p[1](ϕ1[end]))
-    @info "Field velocity according to slow roll approx.: dϕdτ=$(dϕdτ_SR)"
-    # u₁ = SA[ϕ1[end], dϕdτ1[end], a1[end]]
-    u₁ = SA[ϕ1[end], dϕdτ_SR, a1[end]]
+    u₁ = SA[ϕ1[end], dϕdτ1[end], a1[end]]
+    # u₁ = SA[ϕ1[end], dϕdτ_SR, a1[end]]
     @info "Initial conditions for the second part of EOM" u₁
-    
+    @info "Field velocity according to slow roll approx.: dϕdτ=$(dϕdτ_SR)"
 
-    # this is maximal time span, not accounting for the call back
+    # this is maximal time span, not accounting for the callback
     tspan = (τ1[end], - τ1[1])
     affect!(integrator) = terminate!(integrator)
     condition(u, t, integrator) = u[3] / u₀[3] <= 1e4
     cb = ContinuousCallback(condition, affect!)
     τ2, ϕ2, dϕdτ2, a2, H2 = Conformals.solve_eom(u₁, tspan, p, cb)
-    # @show get_others(τ2, ϕ2, dϕdτ2, a2, p[1])[6][1:10]
-
+    
+    # combine two parts
     τ = vcat(τ1, τ2)
     ϕ = vcat(ϕ1, ϕ2)
     dϕdτ = vcat(dϕdτ1, dϕdτ2)
     a = vcat(a1, a2)
     H = vcat(H1, H2)
 
-    # to return a flattened tuple
-    # @show get_others(τ, ϕ, dϕdτ, a, p[1])[6][3720:3750]
     return (get_others(τ, ϕ, dϕdτ, a, H, p[1])..., aₑ, Hₑ)
-
-    return (get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])..., aₑ, Hₑ)
 end
 
+#=
+"""
+DEPRECATED
+only using conformal time for solving background
+seems bad if need large numbers of efolds of inflation 
+"""
 function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
     affect!(integrator) = terminate!(integrator)
     condition1(u, t, integrator) =  get_ϵ1(u...) <= 0.1
@@ -90,9 +92,9 @@ function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
     cb2 = ContinuousCallback(condition2, affect!)
     
     @info "Initial condition" u₀
-    τ, ϕ, dϕdτ, a, H = Conformals.solve_eom(u₀, tspan, p, cb2)
-    τ, ϕ, dϕdτ, a, app_a, H, err = get_others(τ, ϕ, dϕdτ, a, H, p[1])
-    @info "End of inflation: ϕ = $(ϕ[end]), ϵ₁=$(get_ϵ1(ϕ[end], dϕdτ[end], a[end])), dϕdN=$(dϕdτ[end] / (a[end] * H[end]))"
+    τ1, ϕ1, dϕdτ1, a1, H1 = Conformals.solve_eom(u₀, tspan, p, cb1)
+    # τ1, ϕ1, dϕdτ1, a1, app_a1, H1, err1 = get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])
+    @info "End of inflation: ϕ = $(ϕ1[end]), ϵ₁=$(get_ϵ1(ϕ1[end], dϕdτ1[end], a1[end])), dϕdN=$(dϕdτ1[end] / (a1[end] * H1[end]))"
     @info tspan
 
     #=
@@ -114,10 +116,22 @@ function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
         @warn e 
     end
     =#
-    aₑ = a[end]
-    Hₑ = H[end]
+    a1 = a1 ./ a1[end]
+    aₑ = a1[end]
+    Hₑ = H1[end]
 
-    return (τ, ϕ, dϕdτ, a, app_a, H, err, aₑ, Hₑ)
+    tspan = (τ1[end], - τ1[1])
+    u₁ = SA[ϕ1[end], dϕdτ1[end], a1[end]]
+    τ2, ϕ2, dϕdτ2, a2, H2 = Conformals.solve_eom(u₁, tspan, p, cb2)
+    # @show get_others(τ2, ϕ2, dϕdτ2, a2, p[1])[6][1:10]
+
+    τ = vcat(τ1, τ2)
+    ϕ = vcat(ϕ1, ϕ2)
+    dϕdτ = vcat(dϕdτ1, dϕdτ2)
+    a = vcat(a1, a2)
+    H = vcat(H1, H2)
+
+    return (get_others(τ, ϕ, dϕdτ, a, H, p[1])..., aₑ, Hₑ)
 end
-
+=#
 end

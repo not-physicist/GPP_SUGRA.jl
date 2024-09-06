@@ -149,7 +149,7 @@ function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearI
     u₀ = @SVector [1/sqrt(2*ω₀), -1.0im*ω₀/sqrt(2*ω₀)] 
 
     prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, get_ω2)
-    sol = solve(prob, Vern9(), reltol=1e-12, abstol=1e-15, save_everystep=false, maxiters=1e8)
+    sol = solve(prob, Tsit5(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
     # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-6, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     χₑ = sol[1, end]

@@ -25,6 +25,7 @@ using GPP_SUGRA
 
 @time TModes.save_eom(3.5, 0.0035, "data/TMode-0.0035/", 0.8)
 # @time TModes.save_eom(1.9176925328001353, 0.0035, "data/TMode-0.0035/", 3.0)
+@time TModes.save_f(0.0035, "data/TMode-0.0035/", num_mᵪ=20, num_m32=5, num_k=50)
 
 #  @time TModes.save_eom(0.845, 0.0005)
 #  @time TModes.save_f(0.0005, num_mᵪ=20, num_m32=10, num_k=100)

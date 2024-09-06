@@ -38,7 +38,7 @@ function solve_eom(u₀::SVector{3, Float64},
                    p::Tuple{Function, Function})
     # defines when to terminate integrator (at ϵ1 = 0.1)
     # condition(u, t, integrator) = u[2]^2 / (2) <= 0.2
-    condition(u, t, integrator) = u[2]^2 / (2) <= 0.1
+    condition(u, t, integrator) = u[2]^2 / (2) <= 0.05
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition,affect!)
     
@@ -57,7 +57,7 @@ function solve_eom(u₀::SVector{3, Float64},
     N, ϕ, dϕdN, a = N[1:end-1], ϕ[1:end-1], dϕdN[1:end-1], a[1:end-1]
     @info "Number of efolds in inflation: $(N[end] - N[1])"
     @info "End of inflation: ϕ = $(ϕ[end]), ϵ₁=$(dϕdN[end]^2/2.0), dϕdN=$(dϕdN[end])"
-    @info "Field velocity according to slow roll approx.: dϕdN=$(-p[2](ϕ[end])/p[1](ϕ[end]))"
+    # @info "Field velocity according to slow roll approx.: dϕdN=$(-p[2](ϕ[end])/p[1](ϕ[end]))"
     
     # due to numerical nature, very small negative number can be produced for H^2
     # H = sqrt.(max.(0, get_H2.(ϕ, dϕdN, p[1])))

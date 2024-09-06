@@ -15,7 +15,7 @@ from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
-mpl = 2.44e18 # reduced planck
+m_pl = 2.44e18 # reduced planck
 
 #####################################################################################
 # Background
@@ -87,7 +87,7 @@ def plot_background(dn):
     # ax[0, 2].set_ylim((1e-2, 10))
 
     # ax[1, 0].plot(tau, H, c="k")
-    ax[1, 0].plot(N, H*mpl, c="k")
+    ax[1, 0].plot(N, H*m_pl, c="k")
     # ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
     ax[1, 0].set_xlabel(r"$\eta$")
     ax[1, 0].set_ylabel("$H / GeV$")
@@ -107,11 +107,11 @@ def plot_background(dn):
     plt.savefig(out_fn, bbox_inches="tight")
 
     fig, (ax1, ax2) = plt.subplots(ncols=2)
-    ax1.plot(tau, -6*app_a/a**2*mpl**2, c="k")
+    ax1.plot(tau, -6*app_a/a**2*m_pl**2, c="k")
     ax1.set_xlabel(r"$\eta$")
     ax1.set_ylabel("$R/GeV^2$")
 
-    ax2.plot(N, -6*app_a/a**2*mpl**2, c="k")
+    ax2.plot(N, -6*app_a/a**2*m_pl**2, c="k")
     ax2.set_xlabel(r"$\eta$")
     ax2.set_ylabel("$R/GeV^2$")
     ax2.set_xlim((-1, 5))
@@ -648,8 +648,8 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    # plot_f_m3_2(dn, sparse=0.5)
-    # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    plot_f_m3_2(dn, sparse=0.5)
+    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

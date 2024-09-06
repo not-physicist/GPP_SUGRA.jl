@@ -11,7 +11,7 @@ using StaticArrays, OrdinaryDiffEq, NumericalIntegration, Logging
 squared Hubble parameter computed in number of efolds
 """
 function get_H2(ϕ::Real, dϕdN::Real, V::Function)
-    d = 1 - 1/6 * dϕdN^2
+    d = 1.0 - dϕdN^2 / 6.0
     return V(ϕ) / 3.0 / d
 end
 
@@ -37,28 +37,34 @@ assume u₀ in efold units
 function solve_eom(u₀::SVector{3, Float64}, 
                    p::Tuple{Function, Function})
     # defines when to terminate integrator (at ϵ1 = 0.1)
-    condition(u, t, integrator) = u[2]^2 / (2) <= 0.2
+    # condition(u, t, integrator) = u[2]^2 / (2) <= 0.2
+    condition(u, t, integrator) = u[2]^2 / (2) <= 0.1
     affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(condition,affect!)
-
-    prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 10.0], p)
+    
+    # need at most 30 efolds
+    prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 30.0], p)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, Tsit5(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.001)
+    sol = solve(prob, Vern9(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.0001)
      
     N = sol.t
     ϕ = sol[1, :]
     dϕdN = sol[2, :]
-    a = sol[3, :]
+    # rescale scale factor directly (aₑ = 1 always)
+    a = sol[3, :] / sol[3, end]
 
     # the last two element seems to be duplicate; something to do with the termination
     N, ϕ, dϕdN, a = N[1:end-1], ϕ[1:end-1], dϕdN[1:end-1], a[1:end-1]
     @info "Number of efolds in inflation: $(N[end] - N[1])"
+    @info "End of inflation: ϕ = $(ϕ[end]), ϵ₁=$(dϕdN[end]^2/2.0), dϕdN=$(dϕdN[end])"
+    @info "Field velocity according to slow roll approx.: dϕdN=$(-p[2](ϕ[end])/p[1](ϕ[end]))"
     
     # due to numerical nature, very small negative number can be produced for H^2
-    H = sqrt.(max.(0, get_H2.(ϕ, dϕdN, p[1])))
+    # H = sqrt.(max.(0, get_H2.(ϕ, dϕdN, p[1])))
+    H = sqrt.(get_H2.(ϕ, dϕdN, p[1]))
     τ = cumul_integrate(N, @. 1 / (a * H))
     dϕdτ = @. a * H * dϕdN
     
-    return τ, ϕ, dϕdτ, a, a[end], H[end]
+    return τ, ϕ, dϕdτ, a, H, a[end], H[end]
 end
 end

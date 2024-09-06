@@ -104,10 +104,12 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
 
     # initial conditions
     ϕᵢ *= model.ϕₑ
-    dϕᵢ = get_dϕ_SR(ϕᵢ, model)
-    Hinf = get_Hinf(model)
-    @info "Initial conditions are: ", ϕᵢ, dϕᵢ, Hinf
-    u₀ = SA[ϕᵢ, dϕᵢ, 1.0]
+    dϕdτᵢ = get_dϕ_SR(ϕᵢ, model)
+    Hinf = sqrt(get_V(ϕᵢ,model)/3)
+    dϕdNᵢ = dϕdτᵢ/Hinf  # initial a = 1
+
+    @info "Initial conditions are: ", ϕᵢ, dϕdNᵢ
+    u₀ = SA[ϕᵢ, dϕdNᵢ, 1.0]
     τᵢ = - init_time_mul / get_Hinf(model)
     tspan = (τᵢ, - span_asym*τᵢ)
 
@@ -116,11 +118,22 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    # τ, ϕ, dϕ, a, ap, app, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
-    τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom_conf_only(u₀, p, tspan)
+    # # TEST
+    # X = range(2.0, 0.0, 20)
+    # Y = [- _dV(x)/_V(x) for x in X]
+    # @show X, Y
+    
+    # println("\nEFOLDS")
+    τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
+    
+    # println("\nConformal")
+    # u₀ = SA[ϕᵢ, dϕdτᵢ, 1.0]
+    # τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom_conf_only(u₀, p, tspan)
+    
+    dϕ_SR = [get_dϕ_SR(x, model, y) for (x, y) in zip(ϕ, a)]
 
     mkpath(data_dir)
-    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ))
+    npzwrite(data_dir * "ode.npz", Dict("tau"=>τ, "phi"=>ϕ, "phi_d"=>dϕ, "a"=>a, "app_a"=>app_a, "err"=>err, "a_end"=>aₑ, "H"=>H, "H_end"=>Hₑ, "m_phi"=>model.mᵩ, "phi_d_sr"=>dϕ_SR))
     return true
 end
 

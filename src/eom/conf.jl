@@ -34,19 +34,21 @@ solve ODE given the parameters and initial conditions
 """
 function solve_eom(u₀::SVector{3, Float64}, 
                    tspan::Tuple{Float64, Float64}, 
-                   p::Tuple{Function, Function})
+                   p::Tuple{Function, Function},
+                   cb)
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    sol = solve(prob, Tsit5(), maxiters=1e8, reltol=1e-9, abstol=1e-12, save_start=false)
+    sol = solve(prob, Vern9(), maxiters=1e9, reltol=1e-15, abstol=1e-15, save_start=false, callback=cb)
     # sol = solve(prob, Vern9(), maxiters=1e8, reltol=1e-15, abstol=1e-18, save_start=true)
+    # @show sol
     
-    τ= sol.t
+    τ = sol.t
     ϕ = sol[1, :]
     dϕdτ = sol[2, :]
     a = sol[3, :]
 
     # normal Hubble
     H = @. sqrt(1 / 3 * (dϕdτ^2 / 2 + a^2 * p[1](ϕ)))/a
-    @show H[1:10]
+    # @show H[1:10]
 
     return τ, ϕ, dϕdτ, a, H
 end

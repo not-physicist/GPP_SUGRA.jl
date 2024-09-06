@@ -46,20 +46,21 @@ def plot_background(dn):
     Path(out_dn).mkdir(parents=True, exist_ok=True)
 
     tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
+    N = np.log(a)
     # print(H[1:10], H[-10:-1])
 
     tau_end = np.interp(a_end, a, tau)
     phi_end = np.interp(tau_end, tau, phi)
 
     fig, ax = plt.subplots(ncols=2, nrows=2)
-    ax[0, 0].plot(tau, phi, c="k")
+    ax[0, 0].plot(N, phi, c="k")
     # ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
-    ax[0, 0].set_xlabel(r"$\eta$")
+    ax[0, 0].set_xlabel(r"$N$")
     ax[0, 0].set_ylabel(r"$\phi$")
-    #  ax[0, 0].set_xlim((0, 2e4))
+    # ax[0, 0].set_xlim((-1e7, 1e7))
     #  ax[0, 0].set_ylim((-0.01, 0.01))
-
+    
     # ax[0, 1].plot(tau, a, c="k")
     # ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
     #
@@ -74,7 +75,7 @@ def plot_background(dn):
     #  ax[1, 0].set_xlim([-2e6, 8e6])
     #  ax[1, 0].set_ylim([0.4, 0.6])
 
-    ax[0, 1].plot(tau, err, c="k")
+    ax[0, 1].plot(N, err, c="k")
     ax[0, 1].set_xlabel(r"$\eta$")
     ax[0, 1].set_ylabel("error")
     ax[0, 1].set_yscale("log")
@@ -86,7 +87,7 @@ def plot_background(dn):
     # ax[0, 2].set_ylim((1e-2, 10))
 
     # ax[1, 0].plot(tau, H, c="k")
-    ax[1, 0].plot(tau, H*mpl, c="k")
+    ax[1, 0].plot(N, H*mpl, c="k")
     # ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
     ax[1, 0].set_xlabel(r"$\eta$")
     ax[1, 0].set_ylabel("$H / GeV$")
@@ -94,7 +95,7 @@ def plot_background(dn):
     #  ax[1, 0].set_xlim((tau[0], 0))
     #  ax[1, 0].set_ylim((1e-6, 4e-6))
 
-    ax[1, 1].plot(tau, a, c="k")
+    ax[1, 1].plot(N, a, c="k")
     # ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
 
     ax[1, 1].set_xlabel(r"$\eta$")
@@ -110,13 +111,29 @@ def plot_background(dn):
     ax1.set_xlabel(r"$\eta$")
     ax1.set_ylabel("$R/GeV^2$")
 
-    ax2.plot(tau, -6*app_a/a**2*mpl**2, c="k")
-    ax1.set_xlabel(r"$\eta$")
-    ax1.set_ylabel("$R/GeV^2$")
-    ax2.set_xlim((25000, 50000))
-    ax2.set_ylim((-1e26, 1e26))
+    ax2.plot(N, -6*app_a/a**2*mpl**2, c="k")
+    ax2.set_xlabel(r"$\eta$")
+    ax2.set_ylabel("$R/GeV^2$")
+    ax2.set_xlim((-1, 5))
+    # ax2.set_ylim((-1e26, 1e26))
     plt.tight_layout()
     plt.savefig(out_dn + "app_a.pdf", bbox_inches="tight")
+
+    try:
+        data = np.load(dn + "ode.npz")
+        phi_d_sr = data["phi_d_sr"]
+    except KeyError:
+        print("No keys for phi_d_sr detected. SKIPPING")
+    finally:
+        fig, ax = plt.subplots()
+        ax.plot(tau, phi_d, color="k", label="num")
+        ax.plot(tau, phi_d_sr, color="blue", label="SR", ls="--")
+        ax.set_xlim((tau[0], 50000))
+        ax.set_ylim(-1e-5, 1e-5)
+        ax.set_xlabel(r"$\tau$")
+        ax.set_ylabel(r"$d \phi$")
+        plt.tight_layout()
+        plt.savefig(out_dn + "phi_d.pdf", bbox_inches="tight")
 
 #####################################################################################
 # helper functions

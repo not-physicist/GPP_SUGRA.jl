@@ -57,65 +57,35 @@ def plot_background(dn):
     # ax[0, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
 
     ax[0, 0].set_xlabel(r"$N$")
-    ax[0, 0].set_ylabel(r"$\phi$")
-    # ax[0, 0].set_xlim((-1e7, 1e7))
-    #  ax[0, 0].set_ylim((-0.01, 0.01))
+    ax[0, 0].set_ylabel(r"$\phi/m_{\rm pl}$")
     
-    # ax[0, 1].plot(tau, a, c="k")
-    # ax[0, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
-    #
-    # ax[0, 1].set_xlabel(r"$\eta$")
-    # ax[0, 1].set_ylabel("$a/a_i$")
-
-    #  ax[1, 0].plot(tau, phi, c="k")
-    #  ax[1, 0].plot([tau_end, tau_end], [np.amin(phi), np.amax(phi)], c="grey", ls="--")
-    #
-    #  ax[1, 0].set_xlabel("$\eta$")
-    #  ax[1, 0].set_ylabel("$\phi$")
-    #  ax[1, 0].set_xlim([-2e6, 8e6])
-    #  ax[1, 0].set_ylim([0.4, 0.6])
-
-    ax[0, 1].plot(N, err, c="k")
-    ax[0, 1].set_xlabel(r"$\eta$")
-    ax[0, 1].set_ylabel("error")
+    ax[0, 1].plot(N, H*m_pl, c="k")
+    ax[0, 1].set_xlabel(r"$N$")
+    ax[0, 1].set_ylabel("$H / GeV$")
     ax[0, 1].set_yscale("log")
-    
-    # ax[0, 2].plot(tau, 1/(2*a*H)**2 * app_a, color="k")
-    # ax[0, 2].set_xlabel(r"$\eta$")
-    # ax[0, 2].set_ylabel(r"$1/(2aH)^{-2} \cdot a''/a$")
-    # ax[0, 2].set_yscale("log")
-    # ax[0, 2].set_ylim((1e-2, 10))
 
-    # ax[1, 0].plot(tau, H, c="k")
-    ax[1, 0].plot(N, H*m_pl, c="k")
-    # ax[1, 0].plot([tau_end, tau_end], [np.amin(H), np.amax(H)], c="grey", ls="--")
-    ax[1, 0].set_xlabel(r"$\eta$")
-    ax[1, 0].set_ylabel("$H / GeV$")
+    ax[1, 0].plot(N, err, c="k")
+    ax[1, 0].set_xlabel(r"$N$")
+    ax[1, 0].set_ylabel("error")
     ax[1, 0].set_yscale("log")
-    #  ax[1, 0].set_xlim((tau[0], 0))
-    #  ax[1, 0].set_ylim((1e-6, 4e-6))
 
-    ax[1, 1].plot(N, a, c="k")
-    # ax[1, 1].plot([tau_end, tau_end], [np.amin(a), np.amax(a)], c="grey", ls="--")
-
-    ax[1, 1].set_xlabel(r"$\eta$")
-    ax[1, 1].set_ylabel("$a/a_i$")
-    ax[1, 1].set_yscale("log")
-    
+    ax[1, 1].plot(N, -6*app_a/a**2*m_pl**2, c="k")
+    ax[1, 1].set_xlabel(r"$N$")
+    ax[1, 1].set_ylabel("$R/GeV^2$")
 
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
 
     fig, (ax1, ax2) = plt.subplots(ncols=2)
-    ax1.plot(tau, -6*app_a/a**2*m_pl**2, c="k")
-    ax1.set_xlabel(r"$\eta$")
+    ax1.plot(N, -6*app_a/a**2*m_pl**2, c="k")
+    ax1.set_xlabel(r"$N$")
     ax1.set_ylabel("$R/GeV^2$")
 
     ax2.plot(N, -6*app_a/a**2*m_pl**2, c="k")
-    ax2.set_xlabel(r"$\eta$")
+    ax2.set_xlabel(r"$N$")
     ax2.set_ylabel("$R/GeV^2$")
-    ax2.set_xlim((-1, 5))
-    # ax2.set_ylim((-1e26, 1e26))
+    ax2.set_xlim((-1, 2))
+    ax2.set_ylim((-1e27, 1e26))
     plt.tight_layout()
     plt.savefig(out_dn + "app_a.pdf", bbox_inches="tight")
 
@@ -217,7 +187,8 @@ def _get_m_fn(dn, sparse=1.0):
         fns, ms = zip(*sorted(zip(_fns_nosugra, ms)))
 
         return fns, ms
-
+    
+    return fns, ms
 
 def _get_integrated_fn(dn):
     int_prefix = "integrated"
@@ -314,15 +285,16 @@ def plot_f(dn, out_suffix="", sparse=1.0):
             # print(ms_i, k, f)
             # print(k.shape, err.shape)
             # print(ms_i, np.amin(err))
-            ax3.scatter(ms_i, np.amax(err), c="k", label="maximal")
-            ax3.scatter(ms_i, np.amin(err), c="k", label="minimal", marker="x")
+
+            # ax3.scatter(ms_i, np.amax(err), c="k", label="maximal")
+            # ax3.scatter(ms_i, np.amin(err), c="k", label="minimal", marker="x")
 
             if fn_I[i] == 1:
                 color = cmap(ms_i/max(ms))
                 #  ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, I", c=color, ls="--")
                 ax.plot(k, f, c=color, ls="--")
                 # ax2.plot(k, Delta2, c=color, ls="--")
-                # ax3.plot(k, err, c=color)
+                ax3.plot(k, err, c=color)
                 ax4.plot(k, f*k**3, c=color, ls="--")
 
             elif fn_R[i] == 1:
@@ -330,14 +302,14 @@ def plot_f(dn, out_suffix="", sparse=1.0):
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
-                # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
+                ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
-                # ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
+                ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
         out_dn = "figs/" + dn.replace("data/", "") 
@@ -368,8 +340,9 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         fig2.savefig(out_fn, bbox_inches="tight")
         plt.close(2)
 
-        ax3.set_xlabel(r"$m_\chi/m_\phi$")
-        ax3.set_ylabel(r"error")
+        # ax3.set_xlabel(r"$m_\chi/m_\phi$")
+        ax3.set_xlabel(r"$k / (a_e m_\phi)$")
+        ax3.set_ylabel(r"$|\alpha|^2 - |\beta|^2 - 1$")
         ax3.set_xscale("log")
         ax3.set_yscale("log")
         ax3.spines['top'].set_visible(False)
@@ -648,7 +621,7 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.5)
+    plot_f_m3_2(dn)
     plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)

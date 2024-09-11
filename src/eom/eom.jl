@@ -60,10 +60,10 @@ function solve_eom(u₀::SVector, p::Tuple)
 
     # this is maximal time span, not accounting for the callback
     tspan = (τ1[end], - τ1[1])
-    affect!(integrator) = terminate!(integrator)
     condition(u, t, integrator) = u[3] / u₀[3] <= 1e4
-    cb = ContinuousCallback(condition, affect!)
-    τ2, ϕ2, dϕdτ2, a2, H2 = Conformals.solve_eom(u₁, tspan, p, cb)
+    affect!(integrator) = terminate!(integrator)
+    cb2 = ContinuousCallback(condition, affect!)
+    τ2, ϕ2, dϕdτ2, a2, H2 = Conformals.solve_eom(u₁, tspan, p, cb2)
     
     # combine two parts
     τ = vcat(τ1, τ2)

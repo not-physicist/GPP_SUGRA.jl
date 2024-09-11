@@ -24,7 +24,7 @@ cmap = mpl.colormaps['magma']
 # get_app_a = lambda x: np.interp(x, tau, app_a)
 m_phi = 6.171250763232981e-6
 # try small mass first 
-m_chi = 1e-2 * m_phi
+m_chi = 5.0 * m_phi
 # print(H_end, m_phi, m_chi)
 
 def get_omega2(k, t):
@@ -35,11 +35,12 @@ def get_diff_eq(t, y, k):
     # print(t)
     return [y[1], -get_omega2(k, t) * y[0]]
 
-k_array = np.logspace(-3, 1, 15) * a_end * H_end
+k_array = np.logspace(-3, 1, 10) * a_end * H_end
 k_max = np.amax(k_array)
 k_min = np.amin(k_array)
 # print(m_chi, k_array)
-fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
+# fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
+fig, (ax2, ax3) = plt.subplots(ncols=2)
 
 for k in k_array:
     omega0 = np.sqrt(get_omega2(k, tau[0])+0.0j)
@@ -58,31 +59,35 @@ for k in k_array:
     color = cmap( (np.log(k_max) - np.log(k))/(np.log(k_max) - np.log(k_min)) )
     if k == k_max or k == k_min:
         # print(sol.t, np.abs(sol.y[0])**2)
-        ax1.plot(np.interp(sol.t, tau, N), np.abs(sol.y[0])**2, label=f"$k={k:.2e}$", color=color)
+        # ax1.plot(np.interp(sol.t, tau, N), np.abs(sol.y[0])**2, label=f"$k={k:.2e}$", color=color)
+        # ax2.plot(np.interp(sol.t, tau, N), beta2, label=f"$k={k:.2e}$", color=color)
         ax2.plot(np.interp(sol.t, tau, N), beta2, label=f"$k={k:.2e}$", color=color)
     else:
-        ax1.plot(np.interp(sol.t, tau, N), np.abs(sol.y[0])**2, color=color)
+        # ax1.plot(np.interp(sol.t, tau, N), np.abs(sol.y[0])**2, color=color)
+        # ax2.plot(np.interp(sol.t, tau, N), beta2, color=color)
         ax2.plot(np.interp(sol.t, tau, N), beta2, color=color)
         # print(beta2[-1])
-        ax3.scatter(k/a_end/H_end, beta2[-1]*(k/a_end/H_end)**3, color=color)
+        # ax3.scatter(k/a_end/H_end, beta2[-1]*(k/a_end/H_end)**3, color=color)
+        ax3.scatter(k/a_end/H_end, beta2[-1], color=color)
 
     print(k, np.log(beta2[-1]))
 
 # ax3.plot(k_array/a_end/H_end, (k_array/a_end/H_end)**(-3), color=color)
 # ax1.set_xscale("log")
-ax1.set_yscale("log")
-ax1.set_xlabel(r"$\tau$")
-ax1.set_ylabel(r"$|\chi_k|^2$")
-ax1.legend(loc=2)
+# ax1.set_yscale("log")
+# ax1.set_xlabel(r"$\tau$")
+# ax1.set_ylabel(r"$|\chi_k|^2$")
+# ax1.legend(loc=2)
 
 ax2.set_yscale("log")
-ax2.set_xlabel(r"$\tau$")
+ax2.set_xlabel(r"$N$")
 ax2.set_ylabel(r"$|\beta_k|^2$")
 
 ax3.set_xscale("log")
 ax3.set_yscale("log")
 ax3.set_xlabel(r"$k/a_e H_e$")
-ax3.set_ylabel(r"$|\beta_k|^2 k^3$")
+# ax3.set_ylabel(r"$|\beta_k|^2 k^3$")
+ax3.set_ylabel(r"$|\beta_k|^2$")
 
 plt.savefig("demo-pp.pdf")
 plt.close()

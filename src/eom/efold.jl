@@ -35,17 +35,16 @@ end
 assume u₀ in efold units
 """
 function solve_eom(u₀::SVector{3, Float64}, 
-                   p::Tuple{Function, Function})
+                   p::Tuple{Function, Function})    
     # defines when to terminate integrator (at ϵ1 = 0.1)
-    # condition(u, t, integrator) = u[2]^2 / (2) <= 0.2
-    condition(u, t, integrator) = u[2]^2 / (2) <= 0.05
+    condition(u, t, integrator) = u[2]^2 / (2) <= 2.0
     affect!(integrator) = terminate!(integrator)
-    cb = ContinuousCallback(condition,affect!)
-    
+    cb = ContinuousCallback(condition, affect!)
+
     # need at most 30 efolds
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 30.0], p)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, Vern9(), reltol=1e-9, abstol=1e-12, callback=cb, dtmax=0.0001)
+    sol = solve(prob, Vern9(), reltol=1e-15, callback=cb, dtmax=1e-4, maxiters=1e9)
      
     N = sol.t
     ϕ = sol[1, :]

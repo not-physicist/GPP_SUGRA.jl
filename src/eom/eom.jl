@@ -45,18 +45,11 @@ Solving EOM using efolds and conformal time
 function solve_eom(u₀::SVector, p::Tuple)
     τ1, ϕ1, dϕdτ1, a1, H1, aₑ, Hₑ = EFolds.solve_eom(u₀, p)
     τ1 = τ1 .- τ1[end]
-    # @show τ1[end-10:end] ϕ1[end-10:end]
-    # @show size(get_others(τ1, ϕ1, dϕdτ1, a1, p[1])[6])
-    # return (get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])..., aₑ, Hₑ)
 
-    # start with τ = -1/H is ok
-    # @info τ1[1], -1/Hₑ
-
-    dϕdτ_SR = -a1[end]*p[2](ϕ1[end])/sqrt(3*p[1](ϕ1[end]))
+    # dϕdτ_SR = -a1[end]*p[2](ϕ1[end])/sqrt(3*p[1](ϕ1[end]))
+    # @info "Field velocity according to slow roll approx.: dϕdτ=$(dϕdτ_SR)"
     u₁ = SA[ϕ1[end], dϕdτ1[end], a1[end]]
-    # u₁ = SA[ϕ1[end], dϕdτ_SR, a1[end]]
     @info "Initial conditions for the second part of EOM" u₁
-    @info "Field velocity according to slow roll approx.: dϕdτ=$(dϕdτ_SR)"
 
     # this is maximal time span, not accounting for the callback
     tspan = (τ1[end], - τ1[1])
@@ -75,50 +68,40 @@ function solve_eom(u₀::SVector, p::Tuple)
     return (get_others(τ, ϕ, dϕdτ, a, H, p[1])..., aₑ, Hₑ)
 end
 
-#=
 """
 DEPRECATED
 only using conformal time for solving background
 seems bad if need large numbers of efolds of inflation 
 """
 function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
-    affect!(integrator) = terminate!(integrator)
-    condition1(u, t, integrator) =  get_ϵ1(u...) <= 0.1
     get_Hubble(ϕ, dϕ, V, a) = sqrt(1 / 3 * (dϕ^2 / 2 + a^2 * V(ϕ)))/a
     get_ϵ1(ϕ, dϕ, a) = (dϕ / (a*get_Hubble(ϕ, dϕ, p[1], a)))^2/2
-    cb1 = ContinuousCallback(condition1, affect!)
 
-    condition2(u, t, integrator) = u[3] / u₀[3] <= 1e4
-    cb2 = ContinuousCallback(condition2, affect!)
+    affect!(integrator) = terminate!(integrator)
+    # condition1(u, t, integrator) = get_ϵ1(u...) <= 0.1
+    condition1(u, t, integrator) = u[3] <= 1e8
+    cb1 = ContinuousCallback(condition1, affect!)
     
     @info "Initial condition" u₀
     τ1, ϕ1, dϕdτ1, a1, H1 = Conformals.solve_eom(u₀, tspan, p, cb1)
-    # τ1, ϕ1, dϕdτ1, a1, app_a1, H1, err1 = get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])
     @info "End of inflation: ϕ = $(ϕ1[end]), ϵ₁=$(get_ϵ1(ϕ1[end], dϕdτ1[end], a1[end])), dϕdN=$(dϕdτ1[end] / (a1[end] * H1[end]))"
     @info tspan
-
+    
+    index_end = findfirst(x -> x > 0.5, get_ϵ1.(ϕ1, dϕdτ1, a1))
+    aₑ = a1[index_end]
+    # a1 = a1 / aₑ 
+    # aₑ = 1.0
+    Hₑ = H1[index_end]
+    @show aₑ, Hₑ
+    return (get_others(τ1, ϕ1, dϕdτ1, a1, H1, p[1])..., aₑ, Hₑ)
+    
     #=
-    # first slow roll
-    # @show size(H), size(τ), size(a)
-    ϵ₁ = - diff(H) ./ diff(τ) ./ (a .* H.^2)[1:end-1]
-    # @show ϵ₁[1:10], ϵ₁[end-10:end]
-    end_index = findfirst(x -> abs(x) > 0.05, ϵ₁)
-    # @show a, end_index
-
-    aₑ = a[1]
-    Hₑ = H[1]
-    try
-        aₑ = a[end_index]
-        Hₑ = H[end_index]
-        @info aₑ, Hₑ, τ[end_index]
-        @info "$(log(aₑ)) of efolds of inflation"
-    catch e
-        @warn e 
-    end
-    =#
     a1 = a1 ./ a1[end]
     aₑ = a1[end]
     Hₑ = H1[end]
+
+    condition2(u, t, integrator) = u[3] / u₀[3] <= 1e3
+    cb2 = ContinuousCallback(condition2, affect!)
 
     tspan = (τ1[end], - τ1[1])
     u₁ = SA[ϕ1[end], dϕdτ1[end], a1[end]]
@@ -132,6 +115,6 @@ function solve_eom_conf_only(u₀::SVector, p::Tuple, tspan::Tuple)
     H = vcat(H1, H2)
 
     return (get_others(τ, ϕ, dϕdτ, a, H, p[1])..., aₑ, Hₑ)
+    =#
 end
-=#
 end

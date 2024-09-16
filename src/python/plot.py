@@ -34,7 +34,7 @@ def read_ode(dn):
     H = data["H"]
     mᵩ = data["m_phi"]
 
-    #  print(tau[1:100], tau[-100:-1])
+    # print(tau[1:10] - tau[2:11], tau[-10:-1] - tau[-11:-2])
 
     return tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ
 
@@ -75,8 +75,9 @@ def plot_background(dn):
 
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
+    plt.close()
 
-    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
     ax1.plot(N, -6*app_a/a**2*m_pl**2, c="k")
     ax1.set_xlabel(r"$N$")
     ax1.set_ylabel("$R/GeV^2$")
@@ -84,10 +85,48 @@ def plot_background(dn):
     ax2.plot(N, -6*app_a/a**2*m_pl**2, c="k")
     ax2.set_xlabel(r"$N$")
     ax2.set_ylabel("$R/GeV^2$")
-    ax2.set_xlim((-1, 2))
+    ax2.set_xlim((1, 4))
     ax2.set_ylim((-1e27, 1e26))
+    
+    # print(app_a[-100:-1])
+    ax3.plot(N, -6*app_a/a**2*m_pl**2, c="k")
+    ax3.set_xlabel(r"$N$")
+    ax3.set_ylabel("$R/GeV^2$")
+    ax3.set_xlim((6.9, np.max(N)))
+    ax3.set_ylim((-1e21, 1e21))
+
     plt.tight_layout()
     plt.savefig(out_dn + "app_a.pdf", bbox_inches="tight")
+    plt.close()
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    ax1.plot(N, H, c="k", label="$H$")
+    # HUbble from derivative
+    H_deriv = np.diff(a)/np.diff(tau)/a[:-1]**2
+    ax1.plot(N[:-1], H_deriv, c="tab:blue", ls="--", label="$a'/a^2$")
+    ax1.set_xlabel(r"$N$")
+    ax1.legend()
+
+    ax2.plot(N[:-1], (H[:-1]-H_deriv)/H[:-1], c="k")
+    ax2.set_xlabel(r"$N$")
+    ax2.set_ylabel(r"$\Delta H / H$")
+    plt.savefig(out_dn + "H.pdf", bbox_inches="tight")
+    plt.close()
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    ax1.plot(N, app_a, c="k", label="from 2nd friedman")
+    ap = np.diff(a)/np.diff(tau)
+    app = np.diff(ap) / np.diff(tau[:-1])
+    ax1.plot(N[:-2], app / a[:-2], c="tab:blue", alpha=0.4, label="from deriv.")
+    ax1.legend()
+    ax1.set_xlabel(r"$N$")
+    ax1.set_ylabel(r"$a''/a$")
+    ax2.plot(N[:-2], (app_a[:-2] - app / a[:-2])/app_a[:-2], c="k")
+    ax2.set_xlabel(r"$N$")
+    ax2.set_ylabel(r"$\Delta (a''/a) / (a''/a)$")
+
+    plt.savefig(out_dn + "app_a_comp.pdf", bbox_inches="tight")
+    plt.close()
 
     try:
         data = np.load(dn + "ode.npz")
@@ -96,11 +135,11 @@ def plot_background(dn):
         print("No keys for phi_d_sr detected. SKIPPING")
     finally:
         fig, ax = plt.subplots()
-        ax.plot(tau, phi_d, color="k", label="num")
-        ax.plot(tau, phi_d_sr, color="blue", label="SR", ls="--")
-        ax.set_xlim((tau[0], 50000))
-        ax.set_ylim(-1e-5, 1e-5)
-        ax.set_xlabel(r"$\tau$")
+        ax.plot(N, phi_d/(a*H), color="k", label="num")
+        ax.plot(N, phi_d_sr/(a*H), color="blue", label="SR", ls="--")
+        ax.set_xlim(0, 5)
+        ax.set_ylim(-10, 10)
+        ax.set_xlabel(r"$N$")
         ax.set_ylabel(r"$d \phi$")
         plt.tight_layout()
         plt.savefig(out_dn + "phi_d.pdf", bbox_inches="tight")

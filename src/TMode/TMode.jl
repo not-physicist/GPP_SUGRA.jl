@@ -98,7 +98,6 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
 
     model = TMode(1, 0.965, r, ϕᵢ)
     @info dump_struct(model)
-    #  @info model
     @info data_dir
     save_model_data(model, data_dir * "model.dat")
 
@@ -106,27 +105,22 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
     ϕᵢ *= model.ϕₑ
     dϕdτᵢ = get_dϕ_SR(ϕᵢ, model)
     Hinf = sqrt(get_V(ϕᵢ,model)/3)
-    dϕdNᵢ = dϕdτᵢ/Hinf  # initial a = 1
+    # initial a = 1
+    dϕdNᵢ = dϕdτᵢ/Hinf  
 
     @info "Initial conditions are: ", ϕᵢ, dϕdNᵢ
     u₀ = SA[ϕᵢ, dϕdNᵢ, 1.0]
-    # τᵢ = - init_time_mul / get_Hinf(model)
-    # tspan = (τᵢ, - span_asym*τᵢ)
 
     # parameters
     _V(x) = get_V(x, model)
     _dV(x) = get_dV(x, model)
     p = (_V, _dV)
     
-    # # TEST
-    # X = range(2.0, 0.0, 20)
-    # Y = [- _dV(x)/_V(x) for x in X]
-    # @show X, Y
-    
     # println("\nEFOLDS")
     τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom(u₀, p)
     
     # println("\nConformal")
+    # tspan = (-1/Hinf, 1/Hinf)
     # u₀ = SA[ϕᵢ, dϕdτᵢ, 1.0]
     # τ, ϕ, dϕ, a, app_a, H, err, aₑ, Hₑ = EOMs.solve_eom_conf_only(u₀, p, tspan)
     
@@ -156,11 +150,11 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
-    
+     
     m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
 
-    PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
+    # PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
     return true
 end
 const dn_bm = "data/TMode-0.001-benchmark/"

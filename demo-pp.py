@@ -24,7 +24,7 @@ cmap = mpl.colormaps['magma']
 # get_app_a = lambda x: np.interp(x, tau, app_a)
 m_phi = 6.171250763232981e-6
 # try small mass first 
-m_chi = 5.0 * m_phi
+m_chi = 2.0 * m_phi
 # print(H_end, m_phi, m_chi)
 
 def get_omega2(k, t):
@@ -50,7 +50,7 @@ for k in k_array:
     t_span = [tau[0], tau[-1]]
     # print(t_span)
 
-    sol = solve_ivp(get_diff_eq, t_span, y0, args=(k,), rtol=1e-5)
+    sol = solve_ivp(get_diff_eq, t_span, y0, args=(k,), rtol=1e-10)
     # print(k, sol.status)
 
     omega_e = np.sqrt(get_omega2(k, tau[-1])+0.0j)

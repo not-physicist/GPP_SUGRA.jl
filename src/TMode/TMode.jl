@@ -132,21 +132,19 @@ function save_eom(ϕᵢ::Float64, r::Float64=0.001, data_dir::String=MODEL_DATA_
 end
 
 function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
-                num_mᵪ::Int=20, num_m32::Int=5, num_k::Int=100)
+                num_mᵪ::Int=20, num_k::Int=100)
     model = TMode(1, 0.965, r, NaN)
     @info dump_struct(model)
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
     k = logspace(-3.0, 1.0, num_k) * ode.aₑ * model.mᵩ 
-    # @show k[1], k[end]
-    #  mᵪ = SA[logspace(-1.3, 0.7, num_mᵪ).* mᵩ ...]
-    mᵪ = SA[logspace(-1.3, 0.3, num_mᵪ).* mᵩ ...]
     # mᵪ = SA[logspace(-1.3, 0.3, num_mᵪ).* mᵩ ...]
-
+    # mᵪ = SA[1.0 * mᵩ]
+    mᵪ = SA[logspace(-2.0, 0.0, num_mᵪ).* mᵩ ...]
     ξ = SA[0.0]
-    #  m3_2 = [0.0, logspace(-2, log10(2.0), num_m32-1)...] * mᵩ
-    m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
+    # m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
+    m3_2 = SA[0.0, 0.1, 1.0] .* mᵩ
     
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_R, fn_suffix="_R")
@@ -154,13 +152,50 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
 
-    # PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
+    PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
     return true
 end
 const dn_bm = "data/TMode-0.001-benchmark/"
 save_eom_benchmark() = save_eom(1.7, 0.001, dn_bm)
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10, dn_bm)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100, dn_bm)
+
+function save_m_eff(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
+                    num_mᵪ::Int=5, num_m32::Int=1)
+    model = TMode(1, 0.965, r, NaN)
+    @info dump_struct(model)
+    mᵩ = model.mᵩ
+    ode = read_ode(data_dir)
+
+    ξ = 0.0
+    mᵪ = SA[logspace(-1.3, 0.3, num_mᵪ).* mᵩ ...]
+    # mᵪ = SA[2.0 * mᵩ]
+    m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
+    # m3_2 = SA[0.0]
+
+    m2_eff_R(mᵪ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    m2_eff_I(mᵪ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
+    
+    @info "aₑm_ϕ = $(ode.aₑ*mᵩ)" 
+    for m3_2_i in m3_2 
+        m3_2_dir = data_dir * "m3_2=$(m3_2_i/mᵩ)/"
+        mkpath(m3_2_dir)
+        # @info out_dir
+        for mᵪᵢ in mᵪ
+            # @info "Saving effective mass..."
+            @info "mᵪ=$mᵪᵢ\tm3_2=$m3_2_i"
+            
+            f = get_f(ode.ϕ, model, m3_2_i)
+            m2_R = m2_eff_R(mᵪᵢ, m3_2_i)
+            m2_I = m2_eff_I(mᵪᵢ, m3_2_i)
+            
+            mkpath(m3_2_dir * "m_eff")
+            out_fn = m3_2_dir * "m_eff/m_chi=$(mᵪᵢ/mᵩ).npz"
+            npzwrite(out_fn, Dict("tau"=>ode.τ, "a"=>ode.a, "m2_R"=>m2_R, "m2_I"=>m2_I, "f"=>f))
+        end
+    end
+    return true
+end
 
 function save_f_single()
     r = 0.001

@@ -34,7 +34,7 @@ function solve_eom(u₀::SVector{3, Float64},
                    p::Tuple{Function, Function},
                    cb)
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
-    sol = solve(prob, RK4(), maxiters=1e8, reltol=1e-12, abstol=1e-12, save_start=false, callback=cb)
+    sol = solve(prob, RK4(), maxiters=1e9, reltol=1e-14, abstol=1e-14, save_start=false, callback=cb)
 
     # @show sol
     
@@ -46,8 +46,8 @@ function solve_eom(u₀::SVector{3, Float64},
     # normal Hubble
     H = @. sqrt(1 / 3 * (dϕdτ^2 / 2 + a^2 * p[1](ϕ)))/a
     # @show H[1:10]
-    # @show τ[1:10], a[1:10]
-    @show u₀, ϕ[1:10], dϕdτ[1:10]
+    @show τ[1:10], a[1:10], τ[end-10:end-1], a[end-10:end-1]
+    # @show u₀, ϕ[1:10], dϕdτ[1:10]
 
     return τ, ϕ, dϕdτ, a, H
 end

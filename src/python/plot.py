@@ -105,7 +105,7 @@ def plot_background(dn):
     H_deriv = np.diff(a)/np.diff(tau)/a[:-1]**2
     ax1.plot(N[:-1], H_deriv, c="tab:blue", ls="--", label="$a'/a^2$")
     ax1.set_xlabel(r"$N$")
-    ax1.legend()
+    ax1.legend(loc=3)
 
     ax2.plot(N[:-1], (H[:-1]-H_deriv)/H[:-1], c="k")
     ax2.set_xlabel(r"$N$")
@@ -118,7 +118,7 @@ def plot_background(dn):
     ap = np.diff(a)/np.diff(tau)
     app = np.diff(ap) / np.diff(tau[:-1])
     ax1.plot(N[:-2], app / a[:-2], c="tab:blue", alpha=0.4, label="from deriv.")
-    ax1.legend()
+    ax1.legend(loc=2)
     ax1.set_xlabel(r"$N$")
     ax1.set_ylabel(r"$a''/a$")
     ax2.plot(N[:-2], (app_a[:-2] - app / a[:-2])/app_a[:-2], c="k")
@@ -166,7 +166,7 @@ def _get_xi_dn(dn):
     f_xi_prefix = "f_ξ="
     try:
         # get only subdirectories (full path)
-        dirs = [x for x in listdir(dn) if isdir(join(dn, x))]
+        dirs = [x for x in listdir(dn) if isdir(join(dn, x)) and f_xi_prefix in x]
         # get values of xi from directory name
         ξs = [_parse_slash_float(x.replace(f_xi_prefix, "").replace("_", "/")) for x in dirs]
         #  print(dirs, ξs)
@@ -320,7 +320,7 @@ def plot_f(dn, out_suffix="", sparse=1.0):
             k = data["k"]
             Delta2 = data["Delta2"]
             Delta2_beta = data["Delta2_beta"]
-            err = data["err"]
+            err = np.abs(data["err"])
             # print(ms_i, k, f)
             # print(k.shape, err.shape)
             # print(ms_i, np.amin(err))
@@ -564,7 +564,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
     ax.spines['right'].set_visible(False)
     plt.legend(loc='lower right')
     
-    out_fn = dn.replace("data", "figs") + "integrated_comp"
+    out_fn = dn.replace("data", "rfigs") + "integrated_comp"
     if add:
         out_fn += "_add"
     out_fn += ".pdf"
@@ -659,9 +659,9 @@ if __name__ == "__main__":
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
-    plot_background(dn)
+    # plot_background(dn)
     plot_f_m3_2(dn)
-    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     #  plot_integrated_comp(dn, aₑ, Hₑ, mᵩ)
     #  plot_m_eff(dn)
     

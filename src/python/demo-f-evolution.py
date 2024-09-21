@@ -17,9 +17,10 @@ N = np.log(a)
 
 dn_root = "data/TMode-0.0035/m3_2=0.0/f_ξ=0.0/"
 # dn_root = "data/TMode-0.001-benchmark/m3_2=2.0/f_ξ=0.0/"
-dn1 = dn_root + "mᵪ=0.05011872336272722_R/"
-dn2 = dn_root + "mᵪ=0.316227766016838_R/"
-dn3 = dn_root + "mᵪ=1.9952623149688795_R/"
+# dn1 = dn_root + "mᵪ=0.05011872336272722_R/"
+# dn2 = dn_root + "mᵪ=0.316227766016838_R/"
+# dn3 = dn_root + "mᵪ=1.9952623149688795_R/"
+dn1 = dn_root + "mᵪ=2.0_R/"
 """
 
 dn_root = "data/TMode-0.0035/nosugra/f_ξ=0.0/"
@@ -28,7 +29,8 @@ dn2 = dn_root + "mᵪ=1.5848931924611134/"
 dn3 = dn_root + "mᵪ=5.011872336272722/"
 """
 
-dns = [dn1, dn2, dn3]
+# dns = [dn1, dn2, dn3]
+dns = [dn1]
 
 for dn in dns:
     fns = [x for x in listdir(dn) if isfile(join(dn, x))]
@@ -39,6 +41,9 @@ for dn in dns:
         m = float(m[0].replace("mᵪ=", "").replace("_R", "").replace("_I", ""))
     
     fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
+
+    fig2 = plt.figure()
+    ax = fig2.add_subplot()
 
     k_array = [float(fn.replace("k=", "").replace(".npz", "")) for fn in fns]
     k_max, k_min = np.amax(k_array), np.amin(k_array)
@@ -58,6 +63,7 @@ for dn in dns:
             chi = data["chi"]
             # print(len(f), len(eta))
 
+            ax.plot(np.interp(eta[::10], tau, N), np.real(f[::10]), label=rf"$k={k:.2e}$", color=color)
             ax1.plot(np.interp(eta[::10], tau, N), np.real(f[::10]), label=rf"$k={k:.2e}$", color=color)
             ax2.plot(np.interp(eta[::10], tau, N), np.abs(chi[::10])**2 * get_a(eta[::10]), label=rf"$k={k:.2e}$", color=color)
             ax3.plot(np.interp(eta[::10], tau, N), err[::10], label=rf"$k={k:.2e}$", color=color)
@@ -72,7 +78,7 @@ for dn in dns:
     ax2.set_yscale("log")
     ax2.set_xlabel(r"$N$")
     ax2.set_ylabel(r"$a |\chi_k|^2$")
-    ax2.set_ylim((1e4, 2e4))
+    # ax2.set_ylim((1e4, 2e4))
    
     ax3.set_yscale("log")
     ax3.set_xlabel(r"$N$")
@@ -86,5 +92,13 @@ for dn in dns:
     out_dn = dn.replace("data", "figs")
     Path(out_dn).mkdir(parents=True, exist_ok=True)
     out_fn = out_dn + "f_evo.pdf"
-    plt.savefig(out_fn, bbox_inches="tight")
-    plt.close()
+    fig.savefig(out_fn, bbox_inches="tight")
+    plt.close(1)
+
+    ax.set_yscale("log")
+    ax.set_xlabel(r"$N$")
+    ax.set_ylabel(r"$|\beta_k|^2$")
+    ax.set_xlim((0, 4))
+    ax.set_ylim((1e-6, 1e-2))
+    fig2.savefig(out_dn + "beta_evo.pdf", bbox_inches="tight")
+    plt.close(2)

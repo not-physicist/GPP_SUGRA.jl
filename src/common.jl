@@ -115,23 +115,23 @@ compute double integrals numerically using trapzoidal rule
 similar multiquad.jl convention
 ∫_{x₁}^{x₂} ∫_{y₁(x)}^{y₂(x)} f(y, x) dy dx
 
-Here, f should take two Int64 variables as indices
+Here, f should take two float variables as indices
 """
-function double_trap(f::Function, x1::Real, x2::Real, y1::Function, y2::Function, x::Vector, y::Vector)
+function double_trap(f::Function, x1::Real, x2::Real, y1::Function, y2::Function, X::Vector, Y::Vector)
     """
     integrate over y first
     """
-    function get_inner_int(i::Int64)
-        i_start = findfirst(z -> z>y1(x[i]), y)
-        i_end = findlast(z -> z<y2(x[i]), y)
-        # @show i_start, i_end
-        return integrate(y[i_start:i_end], [f(z, i) for z in i_start:i_end])
+    function get_inner_int(x::Real)
+        _y1 = y1(x)
+        _y2 = y2(x)
+        Y_mask = _y1 < _y2 ? Y[Y .> _y1 .&& Y .< _y2] : Y[Y .> _y2 .&& Y .< _y1]
+        res = integrate(Y_mask, [f(z, x) for z in Y_mask])
+
+        return res
     end
     
-    i_start2 = findfirst(z -> z > x1, x)
-    i_end2 = findlast(z -> z < x2, x)
-    # @show i_start, i_end
-    return integrate(x[i_start2:i_end2], [get_inner_int(z) for z in i_start2:i_end2])
+    X_mask = X[X .> x1 .&& X .< x2]
+    return integrate(X_mask, [get_inner_int(x) for x in X_mask])
 end
 
 end

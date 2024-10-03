@@ -124,9 +124,11 @@ function double_trap(f::Function, x1::Real, x2::Real, y1::Function, y2::Function
     function get_inner_int(x::Real)
         _y1 = y1(x)
         _y2 = y2(x)
-        Y_mask = _y1 < _y2 ? Y[Y .> _y1 .&& Y .< _y2] : Y[Y .> _y2 .&& Y .< _y1]
-        res = integrate(Y_mask, [f(z, x) for z in Y_mask])
-
+        # y1 > y2 rarely happens; still consider here
+        # Y_mask = _y1 < _y2 ? Y[Y .> _y1 .&& Y .< _y2] : -Y[Y .> _y2 .&& Y .< _y1]
+        Y_mask = Y[Y .> _y1 .&& Y .< _y2]
+        res = integrate(Y_mask, [f(y, x) for y in Y_mask])
+        @show _y1, _y2, Y_mask, res 
         return res
     end
     

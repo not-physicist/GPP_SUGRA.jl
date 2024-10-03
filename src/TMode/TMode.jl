@@ -138,12 +138,14 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-3.0, 1.0, num_k) * ode.aₑ * model.mᵩ 
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
     # mᵪ = SA[logspace(-1.3, 0.3, num_mᵪ).* mᵩ ...]
-    # mᵪ = SA[1.0 * mᵩ]
-    mᵪ = SA[logspace(-2.0, 0.0, num_mᵪ).* mᵩ ...]
+    # mᵪ = SA[1.5 * mᵩ]
+    mᵪ = SA[logspace(-2.0, 0.47712, num_mᵪ).* mᵩ ...]
+    # mᵪ = SA[3.0.* mᵩ ...]
     ξ = SA[0.0]
     # m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
+    # m3_2 = SA[0.0]
     m3_2 = SA[0.0, 0.1, 1.0] .* mᵩ
     
     m2_eff_R(ode, mᵪ, ξ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
@@ -152,7 +154,7 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     m2_eff_I(ode, mᵪ, ξ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     PPs.save_each(data_dir, mᵩ, ode, k, mᵪ, ξ, m3_2, m2_eff_I, fn_suffix="_I")
 
-    PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
+    # PPs.save_each(data_dir * "nosugra/", mᵩ, ode, k, mᵪ, ξ, get_m2_no_sugra)
     return true
 end
 const dn_bm = "data/TMode-0.001-benchmark/"

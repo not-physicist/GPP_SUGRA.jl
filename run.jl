@@ -1,5 +1,4 @@
 using Pkg
-
 Pkg.activate("./")
 
 using GPP_SUGRA
@@ -24,7 +23,7 @@ using GPP_SUGRA
 # @time TModes.save_f(0.001, "data/TMode-0.01/", num_mᵪ=10, num_m32=3, num_k=20)
 
 # @time TModes.save_eom(3.6, 0.0035, "data/TMode-0.0035/")
-@time TModes.save_f(0.0035, "data/TMode-0.0035/", num_mᵪ=3, num_k=50)
+@time TModes.save_f(0.0035, "data/TMode-0.0035/", num_mᵪ=10, num_k=50)
 # @time TModes.save_m_eff(0.0035, "data/TMode-0.0035/")
 
 #  @time TModes.save_eom(0.845, 0.0005)

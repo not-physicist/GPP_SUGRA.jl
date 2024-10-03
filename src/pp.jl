@@ -58,6 +58,14 @@ function get_diff_eq(u::SVector, p::Tuple, t::Real)
     return dydt
 end
 
+function get_alpha_beta_domain(u, p, t)
+    if (abs2(u[1]) - abs2(u[2]) - 1) < 1e-9
+        return false
+    else 
+        return true
+    end
+end
+
 """
 Solve the differential equations for GPP
 dtmax not used, but keep just in case
@@ -73,19 +81,14 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::U) where
     # false: out of place function for ODEs
     prob = ODEProblem{false}(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    # sol = solve(prob, Tsit5(), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
-    sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
+    sol = solve(prob, RK4(), reltol=1e-9, abstol=1e-9, save_everystep=false, maxiters=1e8, isoutofdomain=get_alpha_beta_domain)
+    # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     αₑ = sol[1, end]
     βₑ = sol[2, end]
     ωₑ = p[1](sol.t[end])
     
-    δt = (sol.t[end] - sol.t[end-1])
-    δαₑ = (sol[1, end] - sol[1, end-1] ) / δt
-    δβₑ = (sol[2, end] - sol[2, end-1] ) / δt
-    δωₑ = (p[1](sol.t[end]) - p[1](sol.t[end-1]) ) / δt
-
-    return αₑ, βₑ, ωₑ, δαₑ, δβₑ, δωₑ
+    return αₑ, βₑ, ωₑ
 end 
 
 """
@@ -96,9 +99,6 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
     α = zeros(ComplexF64, size(k)) 
     β = zeros(ComplexF64, size(k)) 
     ω = zeros(ComplexF64, size(k)) 
-    δα = zeros(ComplexF64, size(k)) 
-    δβ = zeros(ComplexF64, size(k)) 
-    δω = zeros(ComplexF64, size(k)) 
 
     #  err = zeros(size(k))
     
@@ -108,13 +108,10 @@ function solve_diff(k::Vector, t_span::Vector, get_m2::T, get_dm2::T, Ω::Vector
         @inbounds α[i] = res[1]
         @inbounds β[i] = res[2]
         @inbounds ω[i] = res[3]
-        @inbounds δα[i] = res[4]
-        @inbounds δβ[i] = res[5]
-        @inbounds δω[i] = res[6]
     end
     
     #  return f, err
-    return α, β, ω, δα, δβ, δω
+    return α, β, ω
 end
 
 ###########################################################################
@@ -150,7 +147,7 @@ end
 
 function get_wronskian_domain(u, p, t)
     # assume get_wronskian returns a pure img. number
-    if real(1.0+1.0im * get_wronskian(u[1], u[2])) < 1e-6
+    if real(1.0+1.0im * get_wronskian(u[1], u[2])) < 1e-7
         return false
     else 
         return true
@@ -171,11 +168,11 @@ function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearI
     u₀ = @SVector [1/sqrt(2*ω₀), -1.0im*ω₀/sqrt(2*ω₀)] 
     
     prob = ODEProblem{false}(get_diff_eq_mode, u₀, t_span, get_ω2)
-    # sol = solve(prob, Vern9(), reltol=1e-15, abstol=1e-15, save_everystep=false, maxiters=1e9, dtmax=50)
     # sol = solve(prob, AutoVern9(Rodas4(autodiff=false)), reltol=1e-15, abstol=1e-15, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
     # sol = solve(prob, Rodas4(autodiff=false), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
     # # @show t_span
-    sol = solve(prob, RK4(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
+    # sol = solve(prob, Vern9(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
+    sol = solve(prob, Vern9(), reltol=1e-15, abstol=1e-15, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
     χₑ = sol[1, end]
     ∂χₑ = sol[2, end]
     
@@ -193,7 +190,7 @@ function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearI
     # wronskian
     err = 1 + 1.0im * get_wronskian(χₑ, ∂χₑ)
 
-    @show χₑ, ∂χₑ, ωₑ, err
+    # @show χₑ, ∂χₑ, ωₑ, err
     return χₑ, ∂χₑ, ωₑ, err
 end
 
@@ -329,51 +326,72 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             
             #  only want to compute this once for one set of parameters
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
+            t_span = [ode.τ[1], ode.τ[end-2]]
             get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
-            # get_m2 = Interpolations.interpolate((ode.τ,), m2_eff, Gridded(Linear()))
-            # get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ), extrapolate=LinearInterpolations.Constant(0.0))
-            # get_dm2 = Interpolations.interpolate((ode.τ[1:end-1],), diff(m2_eff) ./ diff(ode.τ), Gridded(Linear()))
-            
-            # want to caculate Ω here already, instead of in the inner loop
-            # Ω = Array{Interpolate, 1}(undef, size(k))
-            # Ω = Array{Interpolations.GriddedInterpolation, 1}(undef, size(k))
-            # @show k[1]^2, k[end]^2, m2_eff[1], m2_eff[10]
-            # @inbounds Threads.@threads for i in eachindex(k)
-            #     @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
-            # end
+
+            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
+            Ω = Array{Interpolate, 1}(undef, size(k))
+            @inbounds Threads.@threads for i in eachindex(k)
+                @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
+            end
             # @show typeof(Ω)
                 
-            t_span = [ode.τ[1], ode.τ[end-2]]
-            # α, β, ω, δα, δβ, δω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
-            # err = @. abs2(α) - abs2(β)
+            α, β, ω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+            err = @. abs2(α) - abs2(β) - 1
             # @show err
-            # f = abs2.(β)
-            
-            f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
-            # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
+            f = abs2.(β)
             # @show f
-
+            
             # take the ρ at the end, use last m2_eff
             @inbounds ρs[i] = get_com_energy(k, f, ω)
             @inbounds ns[i] = get_com_number(k, f)
             @inbounds f0s[i] = f[1]
-            
-            # for isocurvature calculation, need Ω only at the end 
-            # interpolate for k
+
             # Ω_new = [x(ode.τ[end-2]) for x in Ω]
-            # @show typeof(Ω_new)
-            # Δ2 = get_Δ2_dis(k, α, β, Ω_new, ρs[i], ode.a[end], mᵪᵢ^2)
-            # Δ2 = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+            # to test 
+            # β_new = [y < ode.aₑ*mᵩ ? x : 0.0 for (x, y) in zip(β, k)]
+
+            # for discrete integration, need to extrapolation to k=0
+            # k_new = vcat([k[1]*1e-3], k)
+            # α_new = vcat([α[1]], α)
+            # β_new = vcat([β[1]], β)
+            # Ω_new = [x(ode.τ[end-2]) for x in vcat([init_Ω(k_new[1], ode.τ, m2_eff)], Ω)]
+            Ω_new = [x(ode.τ[end-2]) for x in Ω]
+            # @show size(k_new) size(α_new) size(β_new) size(Ω_new)
+
+            Δ2_β = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+            # Δ2 = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
+            Δ2 = Δ2_β
+            # @show Δ2
+
+            # calculate spectral index 
+            # intp_Δ2 = LinearInterpolations.Interpolate(k/(ode.aₑ*mᵩ), Δ2)
+            # n_Δ = (log10(intp_Δ2(2e-2)) - log10(intp_Δ2(2e-1))) / (-1)
+            # @show n_Δ
+            
+            #=
+            f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
+            # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
+            # take the ρ at the end, use last m2_eff
+            @inbounds ρs[i] = get_com_energy(k, f, ω)
+            @inbounds ns[i] = get_com_number(k, f)
+            @inbounds f0s[i] = f[1]
+
+            # @show f
+            # for isocurvature calculation, need Ω only at the end 
             Δ2 = get_Δ2_χ(k, χ, ∂χ, ρs[i], ode.a[end], mᵪᵢ)
             Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
+            =#
+
 
             if direct_out
                 return f
             else
                 mkpath(ξ_dirᵢ)
                 # k is in planck unit
+                # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
+                # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "err"=>err))
                 npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "Delta2_beta"=>Δ2_β, "err"=>err))
-                # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f))
             end
         end
         # k is in planck unit

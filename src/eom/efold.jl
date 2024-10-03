@@ -46,7 +46,7 @@ function solve_eom(u₀::SVector{3, Float64},
     ensure_pos_H2(u, p, t) = if get_H2(u[1], u[2], p[1]) < 0 return true else false end
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 30.0], p, isoutofdomain=ensure_pos_H2)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, RK4(), reltol=1e-12, abstol=1e-12, callback=cb, dtmax=1e-4, maxiters=1e9)
+    sol = solve(prob, RK4(), reltol=1e-9, abstol=1e-9, callback=cb, dtmax=1e-4, maxiters=1e9)
      
     N = sol.t
     ϕ = sol[1, :]

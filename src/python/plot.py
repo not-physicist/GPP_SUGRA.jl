@@ -137,10 +137,11 @@ def plot_background(dn):
         fig, ax = plt.subplots()
         ax.plot(N, phi_d/(a*H), color="k", label="num")
         ax.plot(N, phi_d_sr/(a*H), color="blue", label="SR", ls="--")
-        ax.set_xlim(0, 5)
-        ax.set_ylim(-10, 10)
+        # print(phi_d/(a*H)[0], phi_d_sr/(a*H))
+        # ax.set_xlim(-0.2, 0.1)
+        ax.set_ylim(-5, 5)
         ax.set_xlabel(r"$N$")
-        ax.set_ylabel(r"$d \phi$")
+        ax.set_ylabel(r"$d \phi / dN$")
         plt.tight_layout()
         plt.savefig(out_dn + "phi_d.pdf", bbox_inches="tight")
 
@@ -323,7 +324,7 @@ def plot_f(dn, out_suffix="", sparse=1.0):
             # get spectral index 
             itp_Delta2 = lambda x: np.interp(x, k, Delta2)
             n_Delta = (np.log10(itp_Delta2(0.01)) - np.log10(itp_Delta2(0.1)))/(np.log10(0.01) - np.log10(0.1))
-            print(n_Delta)
+            # print(n_Delta)
 
             Delta2_beta = data["Delta2_beta"]
             # print(len(Delta2), len(Delta2_beta))
@@ -659,8 +660,8 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    # dn = "data/TMode-0.001/"
-    dn = "data/TMode-0.0035/"
+    dn = "data/TMode-0.001/"
+    # dn = "data/TMode-0.0035/"
     # dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
@@ -668,8 +669,8 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     plot_background(dn)
-    plot_f_m3_2(dn)
-    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
+    # plot_f_m3_2(dn)
+    # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     # plot_integrated_comp(dn, a_e, mᵩ, add=False)
     #  plot_m_eff(dn)
     

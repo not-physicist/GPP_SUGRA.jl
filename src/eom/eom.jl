@@ -41,9 +41,17 @@ end
 
 """
 Solving EOM using efolds and conformal time
+u₀: initial conditions in number of e-folds
 """
 function solve_eom(u₀::SVector, p::Tuple)
-    τ1, ϕ1, dϕdτ1, a1, H1, aₑ, Hₑ = EFolds.solve_eom(u₀, p)
+    # defines when to terminate integrator (at ϵ1 = 0.1)
+    condition(u, t, integrator) = u[2]^2 / (2.0) <= 0.1
+    # condition(u, t, integrator) = u[3] <= 1e6
+    affect!(integrator) = terminate!(integrator)
+    cb = ContinuousCallback(condition, affect!)
+    @show typeof(cb)
+
+    τ1, ϕ1, dϕdτ1, a1, H1, aₑ, Hₑ = EFolds.solve_eom(u₀, p, cb)
     τ1 = τ1 .- τ1[end]
 
     # dϕdτ_SR = -a1[end]*p[2](ϕ1[end])/sqrt(3*p[1](ϕ1[end]))
@@ -53,9 +61,10 @@ function solve_eom(u₀::SVector, p::Tuple)
 
     # this is maximal time span, not accounting for the callback
     tspan = (τ1[end], - τ1[1])
-    condition(u, t, integrator) = u[3] / u₀[3] <= 1e4
-    affect!(integrator) = terminate!(integrator)
-    cb2 = ContinuousCallback(condition, affect!)
+    condition2(u, t, integrator) = u[3] / u₀[3] <= 5e3
+    # affect!(integrator) = terminate!(integrator)
+    cb2 = ContinuousCallback(condition2, affect!)
+
     τ2, ϕ2, dϕdτ2, a2, H2 = Conformals.solve_eom(u₁, tspan, p, cb2)
     
     # combine two parts

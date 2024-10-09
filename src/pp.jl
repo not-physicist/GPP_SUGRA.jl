@@ -59,7 +59,7 @@ function get_diff_eq(u::SVector, p::Tuple, t::Real)
 end
 
 function get_alpha_beta_domain(u, p, t)
-    if (abs2(u[1]) - abs2(u[2]) - 1) < 1e-9
+    if (abs2(u[1]) - abs2(u[2]) - 1) < 1e-10
         return false
     else 
         return true
@@ -81,7 +81,7 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::U) where
     # false: out of place function for ODEs
     prob = ODEProblem{false}(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-9, abstol=1e-9, save_everystep=false, maxiters=1e8, isoutofdomain=get_alpha_beta_domain)
+    sol = solve(prob, RK4(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e8, isoutofdomain=get_alpha_beta_domain)
     # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     αₑ = sol[1, end]
@@ -147,7 +147,7 @@ end
 
 function get_wronskian_domain(u, p, t)
     # assume get_wronskian returns a pure img. number
-    if real(1.0+1.0im * get_wronskian(u[1], u[2])) < 1e-7
+    if real(1.0+1.0im * get_wronskian(u[1], u[2])) < 1e-5
         return false
     else 
         return true
@@ -172,7 +172,7 @@ function solve_diff_mode(k::Real, t_span::Vector, get_m2::T) where {T <: LinearI
     # sol = solve(prob, Rodas4(autodiff=false), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
     # # @show t_span
     # sol = solve(prob, Vern9(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
-    sol = solve(prob, Vern9(), reltol=1e-15, abstol=1e-15, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
+    sol = solve(prob, Vern9(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e9, isoutofdomain=get_wronskian_domain)
     χₑ = sol[1, end]
     ∂χₑ = sol[2, end]
     
@@ -304,7 +304,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                    k::Vector, mᵪ::SVector, ξ::SVector, 
                    get_m2_eff::Function;
                    direct_out::Bool=false,
-                   fn_suffix::String="")
+                   fn_suffix::String="",
+                   solve_mode::Bool=false)
     # interate over the model parameters
     for ξᵢ in ξ
         ρs = zeros(MVector{size(mᵪ)[1]})
@@ -328,61 +329,56 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
             m2_eff = get_m2_eff(ode, mᵪᵢ, ξᵢ)
             t_span = [ode.τ[1], ode.τ[end-2]]
             get_m2 = LinearInterpolations.Interpolate(ode.τ, m2_eff)
-
-            get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
-            Ω = Array{Interpolate, 1}(undef, size(k))
-            @inbounds Threads.@threads for i in eachindex(k)
-                @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
-            end
-            # @show typeof(Ω)
-                
-            α, β, ω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
-            err = @. abs2(α) - abs2(β) - 1
-            # @show err
-            f = abs2.(β)
-            # @show f
             
-            # take the ρ at the end, use last m2_eff
-            @inbounds ρs[i] = get_com_energy(k, f, ω)
-            @inbounds ns[i] = get_com_number(k, f)
-            @inbounds f0s[i] = f[1]
+            if solve_mode
+                f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
+                # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
+                # take the ρ at the end, use last m2_eff
+                @inbounds ρs[i] = get_com_energy(k, f, ω)
+                @inbounds ns[i] = get_com_number(k, f)
+                @inbounds f0s[i] = f[1]
 
-            # Ω_new = [x(ode.τ[end-2]) for x in Ω]
-            # to test 
-            # β_new = [y < ode.aₑ*mᵩ ? x : 0.0 for (x, y) in zip(β, k)]
+                # @show f
+                # for isocurvature calculation, need Ω only at the end 
+                Δ2 = get_Δ2_χ(k, χ, ∂χ, ρs[i], ode.a[end], mᵪᵢ)
+                Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
+            else
+                get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
+                Ω = Array{Interpolate, 1}(undef, size(k))
+                @inbounds Threads.@threads for i in eachindex(k)
+                    @inbounds Ω[i] = init_Ω(k[i], ode.τ, m2_eff)
+                end
+                # @show typeof(Ω)
+                    
+                α, β, ω = solve_diff(k, t_span, get_m2, get_dm2, Ω)
+                err = @. abs2(α) - abs2(β) - 1
+                # @show err
+                f = abs2.(β)
+                # @show f
+                
+                # take the ρ at the end, use last m2_eff
+                @inbounds ρs[i] = get_com_energy(k, f, ω)
+                @inbounds ns[i] = get_com_number(k, f)
+                @inbounds f0s[i] = f[1]
 
-            # for discrete integration, need to extrapolation to k=0
-            # k_new = vcat([k[1]*1e-3], k)
-            # α_new = vcat([α[1]], α)
-            # β_new = vcat([β[1]], β)
-            # Ω_new = [x(ode.τ[end-2]) for x in vcat([init_Ω(k_new[1], ode.τ, m2_eff)], Ω)]
-            Ω_new = [x(ode.τ[end-2]) for x in Ω]
-            # @show size(k_new) size(α_new) size(β_new) size(Ω_new)
+                # for discrete integration, need to extrapolation to k=0
+                # k_new = vcat([k[1]*1e-3], k)
+                # α_new = vcat([α[1]], α)
+                # β_new = vcat([β[1]], β)
+                # Ω_new = [x(ode.τ[end-2]) for x in vcat([init_Ω(k_new[1], ode.τ, m2_eff)], Ω)]
+                Ω_new = [x(ode.τ[end-2]) for x in Ω]
+                # @show size(k_new) size(α_new) size(β_new) size(Ω_new)
 
-            Δ2_β = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
-            # Δ2 = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
-            Δ2 = Δ2_β
-            # @show Δ2
-
+                Δ2_β = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+                # Δ2 = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
+                Δ2 = Δ2_β
+                # @show Δ2
+            end
+            
             # calculate spectral index 
             # intp_Δ2 = LinearInterpolations.Interpolate(k/(ode.aₑ*mᵩ), Δ2)
             # n_Δ = (log10(intp_Δ2(2e-2)) - log10(intp_Δ2(2e-1))) / (-1)
             # @show n_Δ
-            
-            #=
-            f, ω, χ, ∂χ, err = solve_diff_mode(k, t_span, get_m2)
-            # f, ω, χ, ∂χ, err = solve_diff_mode_all(k, t_span, get_m2, "$(ξ_dirᵢ)mᵪ=$(mᵪᵢ/mᵩ)$fn_suffix")
-            # take the ρ at the end, use last m2_eff
-            @inbounds ρs[i] = get_com_energy(k, f, ω)
-            @inbounds ns[i] = get_com_number(k, f)
-            @inbounds f0s[i] = f[1]
-
-            # @show f
-            # for isocurvature calculation, need Ω only at the end 
-            Δ2 = get_Δ2_χ(k, χ, ∂χ, ρs[i], ode.a[end], mᵪᵢ)
-            Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
-            =#
-
 
             if direct_out
                 return f
@@ -421,8 +417,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
     iter = ProgressBar(eachindex(m3_2))
     for i in iter
         @inbounds m = m3_2[i]
-        set_description(iter, "m_32: $(@sprintf("%.2f", m))",)
-        m3_2_dir = data_dir * "m3_2=$(m/mᵩ)/"
+        set_description(iter, "m3_2: $(@sprintf("%.2f", m))",)
+        m3_2_dir = data_dir * "m3_2=$(@sprintf("%.2f", m/mᵩ))/"
         m2_eff_R(ode, mᵪ, ξ) = get_m2_eff(ode, mᵪ, ξ, m)
         save_each(m3_2_dir, mᵩ, ode, k, mᵪ, ξ, m2_eff_R, 
                   direct_out=direct_out, fn_suffix=fn_suffix)

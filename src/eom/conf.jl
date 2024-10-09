@@ -35,7 +35,6 @@ function solve_eom(u₀::SVector{3, Float64},
                    cb::SciMLBase.ContinuousCallback)
     prob = ODEProblem(friedmann_eq, u₀, tspan, p)
     sol = solve(prob, RK4(), maxiters=1e9, reltol=1e-9, abstol=1e-9, save_start=false, callback=cb)
-
     # @show sol
     
     τ = sol.t

@@ -43,6 +43,7 @@ def plot_background(dn):
     fn = dn + "ode.npz"
     out_dn = "figs/" + dn.replace("data/", "")
     out_fn = out_dn + "background.pdf"
+    out_fn2 = out_dn + "background_draft.pdf"
     Path(out_dn).mkdir(parents=True, exist_ok=True)
 
     tau, phi, phi_d, a, app_a, a_end, H_end, err, H, mᵩ= read_ode(dn)
@@ -75,6 +76,17 @@ def plot_background(dn):
 
     plt.tight_layout()
     plt.savefig(out_fn, bbox_inches="tight")
+    
+    ax[1, 0].clear()
+    ax[1, 0].plot(N, -6*app_a/a**2*m_pl**2, c="k")
+    ax[1, 0].set_xlabel(r"$N$")
+    ax[1, 0].set_ylabel("$R/GeV^2$")
+
+    ax[1, 1].set_xlim((2, 6))
+    ax[1, 1].set_ylim((-5e25, 6e25))
+
+    plt.tight_layout()
+    plt.savefig(out_fn2, bbox_inches="tight")
     plt.close()
 
     fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
@@ -349,14 +361,14 @@ def plot_f(dn, out_suffix="", sparse=1.0):
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
-                ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, R, \beta^4$", c=color, ls="--")
+                # ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, R, \beta^4$", c=color, ls="--")
                 ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
                 ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$, R", c=color)
             else:
                 color = cmap(ms_i/max(ms))
                 ax.plot(k, f, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax2.plot(k, Delta2, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
-                ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
+                # ax2.plot(k, Delta2_beta, label=rf"$m_\chi = {ms_i:.2f} m_\phi, \beta^4$", c=color, ls="--")
                 ax3.plot(k, err, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
                 ax4.plot(k, f*k**3, label=rf"$m_\chi = {ms_i:.2f} m_\phi$", c=color)
 
@@ -380,10 +392,12 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         ax2.set_ylabel(r"$\Delta_\delta^2$")
         ax2.set_xscale("log")
         ax2.set_yscale("log")
+        ax2.set_xlim((4e-2, 1e0))
+        # ax2.set_ylim((1e-5, 1e+5))
         ax2.spines['top'].set_visible(False)
         ax2.spines['right'].set_visible(False)
 
-        fig2.legend()
+        fig2.legend(bbox_to_anchor=(0.35, 0.9))
         out_fn = out_dn + f"isocurv_ξ={ξ:.2f}" + out_suffix + ".pdf"
         fig2.savefig(out_fn, bbox_inches="tight")
         plt.close(2)
@@ -506,6 +520,15 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
         ξ_dirs, ξs = _get_xi_dn(dn_i)
         ξ_dirs_full = [join(dn, x, i) for i in ξ_dirs]
         #  print(ξ_dirs_full, ξs)
+        if y == 0.0:
+            color = cmap(0.0)
+        else:
+            max_m3_2 = max(m3_2s)
+            # exclude m3_2 = 0
+            min_m3_2 = min([x for x in m3_2s if x != 0.0])
+            full_range = np.log10(max_m3_2) - np.log10(min_m3_2)
+            print(max_m3_2, min_m3_2, full_range)
+            color = cmap(1-abs(np.log10(y))/full_range)
 
         for ξ_dir_i in ξ_dirs_full:
             fns, fn_R, fn_I = _get_integrated_fn(ξ_dir_i)
@@ -524,8 +547,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                         ρ_s_T = get_ρ_s_Trh(nm_R + nm_I, mᵩ, rho_p)
                         print(dn_i, ρ_s_T[0])
 
-                        color = cmap(y/max(m3_2s))
-                        label = rf"$m_{{3/2}}={y:.1f}m_\phi$"
+                        label = rf"$m_{{3/2}}={y:.1e}m_\phi$"
                         ax.plot(m, ρ_s_T, color=color, label=label)
                         
                         '''
@@ -543,7 +565,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
             else:
                 # plot every integrated.npz individually
                 for i, fn_i in enumerate(full_fns):
-                    #  print(fn_i)
+                    # print(fn_i)
                     m, nm = _get_n(fn_i)
                     label = ''
                     ls = "-"
@@ -554,7 +576,6 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                         ls = "--"
                     else:
                         pass
-                    color = cmap(y/max(m3_2s))
                     ρ_s_T = get_ρ_s_Trh(nm, mᵩ, rho_p)
                     ax.plot(m, ρ_s_T, color=color, ls=ls, label=label)
     
@@ -567,11 +588,11 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
     ax.set_ylabel(r"$\rho_\chi/(s_0 T_{\rm rh})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    #  ax.set_xlim((0.05, 0.1))
+    ax.set_xlim((m[0], 2))
     #  ax.set_ylim((3e-14, 5e-14))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    plt.legend(loc='lower right')
+    plt.legend(loc='lower left')
     
     out_fn = dn.replace("data", "figs") + "integrated_comp"
     if add:
@@ -660,16 +681,17 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    dn = "data/TMode-0.001/"
-    # dn = "data/TMode-0.0035/"
+    # dn = "data/TMode-0.0001/"
+    # dn = "data/TMode-0.001/"
+    dn = "data/TMode-0.0035/"
     # dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
     rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
-    plot_background(dn)
-    # plot_f_m3_2(dn)
+    # plot_background(dn)
+    plot_f_m3_2(dn, sparse=0.4)
     # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     # plot_integrated_comp(dn, a_e, mᵩ, add=False)
     #  plot_m_eff(dn)

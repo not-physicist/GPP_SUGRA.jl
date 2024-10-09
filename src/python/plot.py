@@ -437,6 +437,74 @@ def plot_f_m3_2(dn, sparse=1):
         dn_i = dn + x + "/"
         plot_f(dn_i, sparse=sparse)
 
+
+def comp_div_num_den():
+    """
+    compute (IR) divergent number density by extrapolation and setting cutoff at CMB scale
+    """
+    return None
+
+def plot_integrated_nosugra(dn):
+    """
+    dn should be the directory of a specific r
+    """
+    # assume only one \xi
+    dn_nosugra_full = dn + "nosugra/f_ξ=0.0"
+    fns, ms = _get_m_fn(dn_nosugra_full)
+    # print(fns, ms)
+    cmap = mpl.colormaps['viridis'].reversed()
+
+    fig, ax = plt.subplots()
+    for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
+        # print(ms_i)
+        fn_full = join(dn_nosugra_full, fn_i)
+        data = np.load(fn_full)
+        color = cmap(ms_i/max(ms))
+        # print(data)
+        f = data["f"]
+        k = data["k"]
+        
+        k_new, f_new = get_extra_f(k, f, 0.1, 60)
+        
+        ax.plot(k_new, f_new, color=color, label=rf"$m_\chi = {ms_i:.3f} m_\phi$")
+        
+    ax.set_xlabel(r"$k/(a_e m_\phi)$")
+    ax.set_ylabel(r"$f_\chi = |\beta|^2$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    fig.legend()
+    out_fn = dn_nosugra_full.replace("data", "figs").replace("/f_ξ=0.0", "") + "/f_extra.pdf"
+    fig.savefig(out_fn, bbox_inches="tight")
+    plt.close()
+
+    return True
+
+def get_extra_f(k, f, mask_upper = 0.1, N_cmb = 60):
+    """
+    extrapolate the f into cmb scale
+    """
+    # mask = (k > 0.01) & (k < 0.1)
+    mask = k < mask_upper
+    n = (np.log10(f[mask][0]) - np.log10(f[mask][-1])) / (np.log10(k[mask][0]) - np.log10(k[mask][-1])) 
+    # print(f"mᵪ={ms_i:.3f},\tpower={n:.3f}")
+    
+    # N_cmb = 60
+    k_cmb = np.exp(-N_cmb) 
+    # print(k_cmb, np.log10(k_cmb) - np.log10(k[0]))
+    # f_cmb = 10**((np.log10(k_cmb) - np.log10(k[0])) * n) * k[0]
+    # print(f_cmb)
+
+    k_new = np.logspace(np.log10(k_cmb), np.log10(k[0]), base=10, num=10)
+    f_new = 10**((np.log10(k_new) - np.log10(k[0])) * n) * f[0]
+
+    k_new = np.concatenate((k_new[:-1], k))
+    f_new = np.concatenate((f_new[:-1], f))
+    # print(k_new, f_new)
+    return k_new, f_new
+
 #####################################################################################
 # integrated quantities
 #####################################################################################
@@ -691,7 +759,8 @@ if __name__ == "__main__":
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     # plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.4)
+    # plot_f_m3_2(dn, sparse=0.4)
+    plot_integrated_nosugra(dn)
     # plot_integrated_comp(dn, rho_p, mᵩ, add=True)
     # plot_integrated_comp(dn, a_e, mᵩ, add=False)
     #  plot_m_eff(dn)

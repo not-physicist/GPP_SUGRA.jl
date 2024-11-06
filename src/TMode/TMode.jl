@@ -138,11 +138,10 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     mᵩ = model.mᵩ
     ode = read_ode(data_dir)
 
-    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * model.mᵩ 
+    # k = logspace(-2.0, 2.0, num_k) * ode.aₑ * mᵩ 
+    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * ode.Hₑ
     # mᵪ = SA[3.0 * mᵩ]
     mᵪ = SA[logspace(-2.0, log10(3.0), num_mᵪ).* mᵩ ...]
-    # mᵪ = SA[logspace(-2.0, 0.47712, num_mᵪ).* mᵩ ...]
-    # mᵪ = SA[logspace(-2.0, 0.30103, num_mᵪ).* mᵩ ...]
     ξ = SA[0.0]
     # m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
     # m3_2 = SA[0.0] .* mᵩ

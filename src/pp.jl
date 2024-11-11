@@ -341,7 +341,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 # @show f
                 # for isocurvature calculation, need Ω only at the end 
                 Δ2 = get_Δ2_χ(k, χ, ∂χ, ρs[i], ode.a[end], mᵪᵢ)
-                Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
+                # Δ2_β = get_Δ2_only_β(k, f, ρs[i], ode.a[end], mᵪᵢ)
+                Δ2_β = Δ2
             else
                 get_dm2 = LinearInterpolations.Interpolate(ode.τ[1:end-1], diff(m2_eff) ./ diff(ode.τ))
                 Ω = Array{Interpolate, 1}(undef, size(k))
@@ -369,8 +370,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 Ω_new = [x(ode.τ[end-2]) for x in Ω]
                 # @show size(k_new) size(α_new) size(β_new) size(Ω_new)
 
-                Δ2_β = get_Δ2(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
-                # Δ2 = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
+                # Δ2 = get_Δ2_quad(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
+                Δ2_β = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
                 Δ2 = Δ2_β
                 # @show Δ2
             end
@@ -387,7 +388,8 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 # k is in planck unit
                 # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "err"=>err))
                 # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "err"=>err))
-                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "Delta2_beta"=>Δ2_β, "err"=>err))
+                # npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*mᵩ), "f"=>f, "Delta2"=>Δ2, "Delta2_beta"=>Δ2_β, "err"=>err))
+                npzwrite(fn_out, Dict("k"=>k/(ode.aₑ*ode.Hₑ), "f"=>f, "Delta2"=>Δ2, "Delta2_beta"=>Δ2_β, "err"=>err))
             end
         end
         # k is in planck unit

@@ -148,7 +148,7 @@ def plot_background(dn):
     finally:
         fig, ax = plt.subplots()
         ax.plot(N, phi_d/(a*H), color="k", label="num")
-        ax.plot(N, phi_d_sr/(a*H), color="blue", label="SR", ls="--")
+        # ax.plot(N, phi_d_sr/(a*H), color="blue", label="SR", ls="--")
         # print(phi_d/(a*H)[0], phi_d_sr/(a*H))
         # ax.set_xlim(-0.2, 0.1)
         ax.set_ylim(-5, 5)
@@ -376,8 +376,8 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         Path(out_dn).mkdir(parents=True, exist_ok=True)
         out_fn = out_dn + f"f_ξ={ξ:.2f}" + out_suffix + ".pdf"
 
-        ax.set_xlabel(r"$k/(a_e m_\phi)$")
-        ax.set_ylabel(r"$f_\chi = |\beta|^2$")
+        ax.set_xlabel(r"$k/(a_e H_e)$")
+        ax.set_ylabel(r"$f_\chi = |\beta_k|^2$")
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.spines['top'].set_visible(False)
@@ -387,8 +387,8 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         fig.savefig(out_fn, bbox_inches="tight")
         plt.close(1)
 
-        ax2.plot(k, k**3, label=rf"$\sim k^3$", c="k", alpha=0.3)
-        ax2.set_xlabel(r"$k/(a_e m_\phi)$")
+        ax2.plot(k, k**3*1e-2, label=rf"$\sim k^3$", c="k", alpha=0.3)
+        ax2.set_xlabel(r"$k/(a_e H_e)$")
         ax2.set_ylabel(r"$\Delta_\delta^2$")
         ax2.set_xscale("log")
         ax2.set_yscale("log")
@@ -403,7 +403,7 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         plt.close(2)
 
         # ax3.set_xlabel(r"$m_\chi/m_\phi$")
-        ax3.set_xlabel(r"$k / (a_e m_\phi)$")
+        ax3.set_xlabel(r"$k / (a_e H_e)$")
         ax3.set_ylabel(r"$|\alpha|^2 - |\beta|^2 - 1$")
         ax3.set_xscale("log")
         ax3.set_yscale("log")
@@ -415,8 +415,8 @@ def plot_f(dn, out_suffix="", sparse=1.0):
         fig3.savefig(out_fn, bbox_inches="tight")
         plt.close(3)
 
-        ax4.set_xlabel(r"$k/(a_e m_\phi)$")
-        ax4.set_ylabel(r"$ |\beta|^2 \cdot (k/ a_e m_\phi)^3$")
+        ax4.set_xlabel(r"$k/(a_e H_e)$")
+        ax4.set_ylabel(r"$ |\beta_k|^2 \cdot (k/ a_e H_e)^3$")
         ax4.set_xscale("log")
         ax4.set_yscale("log")
         ax4.spines['top'].set_visible(False)
@@ -438,11 +438,12 @@ def plot_f_m3_2(dn, sparse=1):
         plot_f(dn_i, sparse=sparse)
 
 
-def comp_div_num_den():
+def comp_div_num_den(k, f):
     """
     compute (IR) divergent number density by extrapolation and setting cutoff at CMB scale
     """
-    return None
+    return np.trapezoid(f*k**2, k)
+
 
 def plot_integrated_nosugra(dn):
     """
@@ -465,6 +466,10 @@ def plot_integrated_nosugra(dn):
         k = data["k"]
         
         k_new, f_new = get_extra_f(k, f, 0.1, 60)
+
+        # number density; in the unit of k
+        num_den = comp_div_num_den(k_new, f_new)
+        print(num_den)
         
         ax.plot(k_new, f_new, color=color, label=rf"$m_\chi = {ms_i:.3f} m_\phi$")
         
@@ -482,9 +487,11 @@ def plot_integrated_nosugra(dn):
 
     return True
 
+
 def get_extra_f(k, f, mask_upper = 0.1, N_cmb = 60):
     """
     extrapolate the f into cmb scale
+    mask_upper: upper limit of the range where power index is calculated
     """
     # mask = (k > 0.01) & (k < 0.1)
     mask = k < mask_upper
@@ -509,33 +516,32 @@ def get_extra_f(k, f, mask_upper = 0.1, N_cmb = 60):
 # integrated quantities
 #####################################################################################
 
-def plot_integrated(dn):
-    dirs, ξs = _get_xi_dn(dn)
-
-    for (ξ, d_i) in zip(ξs, dirs):
-        fn = join(dn, d_i, "integrated.npz")
-        data = np.load(fn)
-        m = data["m_chi"]
-        f0 = data["f0"]
-        ρ = data["rho"]
-        n = data["n"]
-        # print(m, ρ, n)
-
-        fig, ax = plt.subplots()
-        ax.scatter(m, f0, label=r"$f_\chi(k\leftarrow 0) $")
-        ax.scatter(m, ρ, label=r"$a^4 \rho_\chi / m_\phi^4$")
-        ax.scatter(m, n, label=r"$a^3 n_\chi / m_\phi^3$")
-
-        ax.set_xlabel(r"$m_\chi / m_\phi$")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        plt.legend()
-
-        out_dn = "figs/" + dn.replace("data/", "") 
-        out_fn = out_dn + f"integrated_ξ={ξ:.2f}.pdf"
-        plt.savefig(out_fn, bbox_inches="tight")
-        plt.close()
-
+# def plot_integrated(dn):
+#     dirs, ξs = _get_xi_dn(dn)
+#
+#     for (ξ, d_i) in zip(ξs, dirs):
+#         fn = join(dn, d_i, "integrated.npz")
+#         data = np.load(fn)
+#         m = data["m_chi"]
+#         f0 = data["f0"]
+#         ρ = data["rho"]
+#         n = data["n"]
+#         # print(m, ρ, n)
+#
+#         fig, ax = plt.subplots()
+#         ax.scatter(m, f0, label=r"$f_\chi(k\leftarrow 0) $")
+#         ax.scatter(m, ρ, label=r"$a^4 \rho_\chi / m_\phi^4$")
+#         ax.scatter(m, n, label=r"$a^3 n_\chi / m_\phi^3$")
+#
+#         ax.set_xlabel(r"$m_\chi / m_\phi$")
+#         ax.set_xscale("log")
+#         ax.set_yscale("log")
+#         plt.legend()
+#
+#         out_dn = "figs/" + dn.replace("data/", "") 
+#         out_fn = out_dn + f"integrated_ξ={ξ:.2f}.pdf"
+#         plt.savefig(out_fn, bbox_inches="tight")
+#         plt.close()
 
 def _get_n(fn):
     """
@@ -552,7 +558,7 @@ def _power_law(x, a, b, n):
     return a*x**n + b
 
 
-def get_ρ_s_Trh(nm, mᵩ, rho_p):
+def get_ρ_s_Trh(nm, mᵩ, Hₑ):
     """
     calculate ρ_{χ, 0} / (s₀ T_{rh})
     assume all inputs are in reduced planck unit
@@ -560,7 +566,7 @@ def get_ρ_s_Trh(nm, mᵩ, rho_p):
     Now uses the correct formula (with rho_p)
     """
     #  return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
-    return 3.0 / 4.0 * nm * mᵩ / rho_p
+    return nm * mᵩ * Hₑ / 4.0
 
 
 def linear_f(x, a):
@@ -569,7 +575,7 @@ def linear_f(x, a):
 def inverse_f(x, a, b):
     return a * x + b
 
-def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
+def plot_integrated_comp(dn, Hₑ, mᵩ, add=False):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
@@ -612,7 +618,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                     m_I, nm_I = _get_n(fn_I)
                     if np.array_equal(m_R, m_I):
                         m = m_R
-                        ρ_s_T = get_ρ_s_Trh(nm_R + nm_I, mᵩ, rho_p)
+                        ρ_s_T = get_ρ_s_Trh(nm_R + nm_I, mᵩ, Hₑ)
                         print(dn_i, ρ_s_T[0])
 
                         label = rf"$m_{{3/2}}={y:.1e}m_\phi$"
@@ -644,7 +650,7 @@ def plot_integrated_comp(dn, rho_p, mᵩ, add=False):
                         ls = "--"
                     else:
                         pass
-                    ρ_s_T = get_ρ_s_Trh(nm, mᵩ, rho_p)
+                    ρ_s_T = get_ρ_s_Trh(nm, mᵩ, Hₑ)
                     ax.plot(m, ρ_s_T, color=color, ls=ls, label=label)
     
     # add linear part for visual guidance
@@ -749,20 +755,19 @@ def cp_model_data(dn):
 
 if __name__ == "__main__":
     # TMode
-    dn = "data/TMode-0.0001/"
+    # dn = "data/TMode-0.0001/"
+    # dn = "data/TMode-0.001-iso/"
+    dn = "data/TMode-0.0035/"
     # dn = "data/TMode-0.001/"
-    # dn = "data/TMode-0.0035/"
-    # dn = "data/TMode-0.001-benchmark/"
     _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
-    rho_p = 3 * H[-1]**2 * a[-1]**3
+    # rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     # plot_background(dn)
     plot_f_m3_2(dn, sparse=0.4)
-    # plot_integrated_nosugra(dn)
-    plot_integrated_comp(dn, rho_p, mᵩ, add=True)
-    # plot_integrated_comp(dn, a_e, mᵩ, add=False)
+    plot_integrated_nosugra(dn)
+    # plot_integrated_comp(dn, Hₑ, mᵩ, add=True)
     #  plot_m_eff(dn)
     
     # SmallField

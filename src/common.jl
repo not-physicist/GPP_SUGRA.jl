@@ -140,14 +140,14 @@ function double_trap(f::Function, x1::Real, x2::Real, y1::Function, y2::Function
     integrate over y first
     """
     function get_inner_int(i::Int64)
-        i_start = findfirst(z -> z>y1(x[i]), y)
-        i_end = findlast(z -> z<y2(x[i]), y)
+        i_start = findfirst(z -> z >= y1(x[i]), y)
+        i_end = findlast(z -> z <= y2(x[i]), y)
         # @show i_start, i_end
         return integrate(y[i_start:i_end], [f(z, i) for z in i_start:i_end])
     end
 
-    i_start2 = findfirst(z -> z > x1, x)
-    i_end2 = findlast(z -> z < x2, x)
+    i_start2 = findfirst(z -> z >= x1, x)
+    i_end2 = findlast(z -> z <= x2, x)
     # @show i_start, i_end
     return integrate(x[i_start2:i_end2], [get_inner_int(z) for z in i_start2:i_end2])
 end

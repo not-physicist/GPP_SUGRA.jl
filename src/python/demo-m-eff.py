@@ -14,7 +14,7 @@ mᵩ = data["m_phi"]
 k_array = np.array([1e-3, 1e-2, 1e-1]) * mᵩ
 # print(k_array)
 
-dn = "data/TMode-0.0035/m3_2=0.0/m_eff/"
+dn = "data/TMode-0.0035/m3_2=0.00/m_eff/"
 fns = [x for x in listdir(dn)]
 # print(fns)
 

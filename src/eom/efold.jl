@@ -42,7 +42,7 @@ function solve_eom(u₀::SVector{3, Float64},
     # need at most 30 efolds for inflation
     prob = ODEProblem(friedmann_eq_efold, u₀, [0.0, 30.0], p, isoutofdomain=ensure_pos_H2)
     # dtmax setting is required to ensure the following differentiation behaves well enough
-    sol = solve(prob, RK4(), reltol=1e-9, abstol=1e-9, callback=cb, dtmax=1e-4, maxiters=1e9)
+    sol = solve(prob, RK4(), reltol=1e-9, abstol=1e-9, callback=cb, dtmax=1e-5, maxiters=1e9)
     # sol = solve(prob, Vern9(), reltol=1e-12, abstol=1e-12, callback=cb, dtmax=1e-5, maxiters=1e9)
      
     N = sol.t

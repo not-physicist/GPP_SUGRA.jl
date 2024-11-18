@@ -11,7 +11,7 @@ using ..EOMs
 using ..Commons
 using ..PPs
 
-using StaticArrays, NPZ, Logging
+using StaticArrays, NPZ, Logging, Printf
 # using JLD2
 
 # global constant
@@ -139,9 +139,10 @@ function save_f(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     ode = read_ode(data_dir)
 
     # k = logspace(-2.0, 2.0, num_k) * ode.aₑ * mᵩ 
-    k = logspace(-2.0, 2.0, num_k) * ode.aₑ * ode.Hₑ
-    # mᵪ = SA[3.0 * mᵩ]
+    k = logspace(log10(0.05), 2.0, num_k) * ode.aₑ * ode.Hₑ
+    # mᵪ = SA[0.668724508653783 * mᵩ]
     mᵪ = SA[logspace(-2.0, log10(3.0), num_mᵪ).* mᵩ ...]
+    # mᵪ = SA[logspace(log10(0.5), log10(3.0), num_mᵪ).* mᵩ ...]
     ξ = SA[0.0]
     # m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
     # m3_2 = SA[0.0] .* mᵩ
@@ -161,7 +162,7 @@ save_eom_benchmark() = save_eom(1.7, 0.001, dn_bm)
 save_f_benchmark() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=10, dn_bm)
 save_f_benchmark2() = save_f(0.001, num_mᵪ=5, num_m32=3, num_k=100, dn_bm)
 
-function save_m_eff(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
+function save_m_eff(r::Float64=0.0035, data_dir::String=MODEL_DATA_DIR*"$r/";
                     num_mᵪ::Int=5, num_m32::Int=1)
     model = TMode(1, 0.965, r, NaN)
     @info dump_struct(model)
@@ -169,17 +170,17 @@ function save_m_eff(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
     ode = read_ode(data_dir)
 
     ξ = 0.0
-    mᵪ = SA[logspace(-1.3, 0.3, num_mᵪ).* mᵩ ...]
+    mᵪ = SA[logspace(-1, log10(2), num_mᵪ).* mᵩ ...]
     # mᵪ = SA[2.0 * mᵩ]
-    m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
-    # m3_2 = SA[0.0]
+    # m3_2 = SA[collect(range(0.0, 2.0; length=num_m32)) * mᵩ ...]
+    m3_2 = SA[0.0, 0.1] * mᵩ
 
     m2_eff_R(mᵪ, m3_2) = get_m2_eff_R(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     m2_eff_I(mᵪ, m3_2) = get_m2_eff_I(ode, mᵪ, ξ, get_f(ode.ϕ, model, m3_2))
     
     @info "aₑm_ϕ = $(ode.aₑ*mᵩ)" 
     for m3_2_i in m3_2 
-        m3_2_dir = data_dir * "m3_2=$(m3_2_i/mᵩ)/"
+        m3_2_dir = data_dir * "m3_2=$(@sprintf("%.2f", m3_2_i/mᵩ))/"
         mkpath(m3_2_dir)
         # @info out_dir
         for mᵪᵢ in mᵪ
@@ -191,7 +192,7 @@ function save_m_eff(r::Float64=0.001, data_dir::String=MODEL_DATA_DIR*"$r/";
             m2_I = m2_eff_I(mᵪᵢ, m3_2_i)
             
             mkpath(m3_2_dir * "m_eff")
-            out_fn = m3_2_dir * "m_eff/m_chi=$(mᵪᵢ/mᵩ).npz"
+            out_fn = m3_2_dir * "m_eff/mᵪ=$(mᵪᵢ/mᵩ).npz"
             npzwrite(out_fn, Dict("tau"=>ode.τ, "a"=>ode.a, "m2_R"=>m2_R, "m2_I"=>m2_I, "f"=>f))
         end
     end

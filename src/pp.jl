@@ -59,7 +59,7 @@ function get_diff_eq(u::SVector, p::Tuple, t::Real)
 end
 
 function get_alpha_beta_domain(u, p, t)
-    if (abs2(u[1]) - abs2(u[2]) - 1) < 1e-10
+    if (abs2(u[1]) - abs2(u[2]) - 1) < 1e-12
         return false
     else 
         return true
@@ -81,7 +81,7 @@ function solve_diff(k::Real, t_span::Vector, get_m2::T, get_dm2::T, Ω::U) where
     # false: out of place function for ODEs
     prob = ODEProblem{false}(get_diff_eq, u₀, t_span, p)
     #  adaptive algorithm depends on relative tolerance
-    sol = solve(prob, RK4(), reltol=1e-10, abstol=1e-10, save_everystep=false, maxiters=1e8, isoutofdomain=get_alpha_beta_domain)
+    sol = solve(prob, RK4(), reltol=1e-12, abstol=1e-12, save_everystep=false, maxiters=1e8, isoutofdomain=get_alpha_beta_domain)
     # sol = solve(prob, Rosenbrock23(autodiff=false), reltol=1e-7, abstol=1e-9, save_everystep=false, maxiters=1e8)
 
     αₑ = sol[1, end]
@@ -371,7 +371,7 @@ function save_each(data_dir::String, mᵩ::Real, ode::ODEData,
                 # @show size(k_new) size(α_new) size(β_new) size(Ω_new)
 
                 # Δ2 = get_Δ2_quad(k, α, β, Ω_new, ρs[i], ode.a[end], m2_eff[end])
-                Δ2_β = get_Δ2_α_only_β(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
+                Δ2_β = get_Δ2_quad(k, α, β, Ω, ρs[i], ode.a[end], m2_eff[end])
                 Δ2 = Δ2_β
                 # @show Δ2
             end

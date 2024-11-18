@@ -212,7 +212,12 @@ def _get_m_fn(dn, sparse=1.0):
     
     # sort the lists together
     # print(fns, ms)
-    fns, ms = zip(*sorted(zip(fns, ms)))
+    try: 
+        fns, ms = zip(*sorted(zip(fns, ms)))
+    except ValueError:
+        print("ValueError", fns, ms)
+        return ValueError
+    
     
     _skip = int(1/sparse)
     if sparse < 1 and "nosugra" not in dn:
@@ -241,6 +246,7 @@ def _get_m_fn(dn, sparse=1.0):
         return fns, ms
     
     return fns, ms
+
 
 def _get_integrated_fn(dn):
     int_prefix = "integrated"
@@ -445,19 +451,29 @@ def comp_div_num_den(k, f):
     return np.trapezoid(f*k**2, k)
 
 
-def plot_integrated_nosugra(dn):
+def plot_integrated_nosugra(dn, mᵩ, Hₑ):
     """
     dn should be the directory of a specific r
     """
     # assume only one \xi
+    Path(dn.replace("data", "figs") + "nosugra/").mkdir(parents=True, exist_ok=True)
     dn_nosugra_full = dn + "nosugra/f_ξ=0.0"
     fns, ms = _get_m_fn(dn_nosugra_full)
     # print(fns, ms)
     cmap = mpl.colormaps['viridis'].reversed()
+    print("m_phi = ", mᵩ, "H_e = ", Hₑ)
 
-    fig, ax = plt.subplots()
+    fig1 = plt.figure()
+    ax = fig1.add_subplot()
+
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot()
+
+    lines_array = []
+    ρ_s0_T_array = []
     for (i, (fn_i, ms_i)) in enumerate(zip(fns, ms)):
-        # print(ms_i)
+        print("----")
+        print(r"m_phi = ", ms_i)
         fn_full = join(dn_nosugra_full, fn_i)
         data = np.load(fn_full)
         color = cmap(ms_i/max(ms))
@@ -465,27 +481,65 @@ def plot_integrated_nosugra(dn):
         f = data["f"]
         k = data["k"]
         
-        k_new, f_new = get_extra_f(k, f, 0.1, 60)
+        k_new, f_new, n = get_extra_f(k, f, 0.1, 60)
 
         # number density; in the unit of k
         num_den = comp_div_num_den(k_new, f_new)
-        print(num_den)
+        ρ_s0_T = get_ρ_s_Trh(num_den*ms_i, mᵩ, Hₑ)
+        print(n, np.log10(num_den), ρ_s0_T)
+        ρ_s0_T_array.append(ρ_s0_T)
         
-        ax.plot(k_new, f_new, color=color, label=rf"$m_\chi = {ms_i:.3f} m_\phi$")
-        
-    ax.set_xlabel(r"$k/(a_e m_\phi)$")
+        # save the "line"s for slowing less label handles
+        label = rf"$m_\chi = {ms_i:.2f} m_\phi$"
+        line,  = ax.plot(k_new, f_new, color=color, label=label)
+        ax2.plot(k, f, color=color, label=label)
+        lines_array.append(line)
+    
+    ax.set_xlabel(r"$k/(a_e H_e)$")
     ax.set_ylabel(r"$f_\chi = |\beta|^2$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    # ax.set_xlim((1e-4,1e1))
+    # ax.set_ylim((1e0,1e8))
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    # don't need all the labels
+    # fig.legend(handles=lines_array[::2])
+    fig1.legend(handles=lines_array)
+    out_fn = dn_nosugra_full.replace("data", "figs").replace("/f_ξ=0.0", "") + "/f_extra.pdf"
+    fig1.savefig(out_fn, bbox_inches="tight")
+    plt.close(1)
+
+    ax2.set_xlabel(r"$k/(a_e H_e)$")
+    ax2.set_ylabel(r"$f_\chi = |\beta|^2$")
+    ax2.set_xscale("log")
+    ax2.set_yscale("log")
+    # ax.set_xlim((1e-4,1e1))
+    # ax.set_ylim((1e0,1e8))
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    
+    # don't need all the labels
+    # fig.legend(handles=lines_array[::2])
+    fig2.legend(handles=lines_array)
+    out_fn = dn_nosugra_full.replace("data", "figs").replace("/f_ξ=0.0", "") + "/f.pdf"
+    fig2.savefig(out_fn, bbox_inches="tight")
+    plt.close(2)
+
+    fig, ax = plt.subplots()
+    ax.plot(ms, ρ_s0_T_array, color="k")
+    ax.set_xlabel(r"$m_\chi / m_\phi$")
+    ax.set_ylabel(r"$\rho / s_0 T_{\rm rh}$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-
-    fig.legend()
-    out_fn = dn_nosugra_full.replace("data", "figs").replace("/f_ξ=0.0", "") + "/f_extra.pdf"
+    out_fn = dn.replace("data", "figs") + "/integrated_nosugra.pdf"
     fig.savefig(out_fn, bbox_inches="tight")
     plt.close()
 
-    return True
+    return ms, ρ_s0_T_array
 
 
 def get_extra_f(k, f, mask_upper = 0.1, N_cmb = 60):
@@ -510,7 +564,7 @@ def get_extra_f(k, f, mask_upper = 0.1, N_cmb = 60):
     k_new = np.concatenate((k_new[:-1], k))
     f_new = np.concatenate((f_new[:-1], f))
     # print(k_new, f_new)
-    return k_new, f_new
+    return k_new, f_new, n
 
 #####################################################################################
 # integrated quantities
@@ -561,9 +615,9 @@ def _power_law(x, a, b, n):
 def get_ρ_s_Trh(nm, mᵩ, Hₑ):
     """
     calculate ρ_{χ, 0} / (s₀ T_{rh})
-    assume all inputs are in reduced planck unit
-    except nm which  is nᵪ * (mᵪ / m_ϕ)
-    Now uses the correct formula (with rho_p)
+    
+    m should be in mᵩ-unit 
+    n should be in (aₑHₑ)^3-unit
     """
     #  return 2*np.pi * nm * mᵩ / Hₑ**2 / aₑ**3
     return nm * mᵩ * Hₑ / 4.0
@@ -575,7 +629,7 @@ def linear_f(x, a):
 def inverse_f(x, a, b):
     return a * x + b
 
-def plot_integrated_comp(dn, Hₑ, mᵩ, add=False):
+def plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=False, nosugra=None):
     """
     plot different integrated data for comparison
     assume m3_2/f_ξ/integrated.npz structure (with _R and _I for fields)
@@ -601,7 +655,7 @@ def plot_integrated_comp(dn, Hₑ, mᵩ, add=False):
             # exclude m3_2 = 0
             min_m3_2 = min([x for x in m3_2s if x != 0.0])
             full_range = np.log10(max_m3_2) - np.log10(min_m3_2)
-            print(max_m3_2, min_m3_2, full_range)
+            # print(max_m3_2, min_m3_2, full_range)
             color = cmap(1-abs(np.log10(y))/full_range)
 
         for ξ_dir_i in ξ_dirs_full:
@@ -618,10 +672,11 @@ def plot_integrated_comp(dn, Hₑ, mᵩ, add=False):
                     m_I, nm_I = _get_n(fn_I)
                     if np.array_equal(m_R, m_I):
                         m = m_R
-                        ρ_s_T = get_ρ_s_Trh(nm_R + nm_I, mᵩ, Hₑ)
-                        print(dn_i, ρ_s_T[0])
+                        ρ_s_T = get_ρ_s_Trh((nm_R + nm_I)/(aₑ*Hₑ)**3, mᵩ, Hₑ)
+                        # print(nm_R + nm_I)
+                        # print(dn_i, "rho/s/T = ", ρ_s_T[0])
 
-                        label = rf"$m_{{3/2}}={y:.1e}m_\phi$"
+                        label = rf"$m_{{3/2}}={y:.2f}m_\phi$"
                         ax.plot(m, ρ_s_T, color=color, label=label)
                         
                         '''
@@ -657,16 +712,20 @@ def plot_integrated_comp(dn, Hₑ, mᵩ, add=False):
     if add:
         #  ax.plot([0.1, 1], _power_law([0.1, 1], 1e-17, 0, 1), color="grey", ls="--", label="linear")
         pass
+    
+    if nosugra is not None:
+        ms, ρ_s_T = nosugra
+        ax.plot(ms, ρ_s_T, color="k", label="no SUGRA")
 
     ax.set_xlabel(r"$m_\chi / m_\phi$")
     ax.set_ylabel(r"$\rho_\chi/(s_0 T_{\rm rh})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim((m[0], 2))
-    #  ax.set_ylim((3e-14, 5e-14))
+    ax.set_xlim((0.03, 2))
+    ax.set_ylim((5e-17, 2e-5))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    plt.legend(loc='lower left')
+    plt.legend(loc='upper right')
     
     out_fn = dn.replace("data", "figs") + "integrated_comp"
     if add:
@@ -711,39 +770,41 @@ def _draw_m(fn, ax):
     #  plt.savefig(dn.replace("data", "figs") + "m2.pdf", bbox_inches="tight")
 
 
-def plot_m_eff(dn):
-    _, _, _, a, _, _, _, _, _, _ = read_ode(dn)
-    dirs, m3_2s = _get_m3_2_dir(dn + "m_eff/")
+def plot_m_eff(dn, a, mᵩ, which=None):
+    dirs, m3_2s = _get_m3_2_dir(dn)
+    # print(dirs, m3_2s)
     cmap = mpl.colormaps['magma'].reversed()
 
     for (d, m) in zip(dirs, m3_2s):
-        fns, ms = _get_m_fn(join(dn + "m_eff/", d))
-        fig, (ax1, ax2) = plt.subplots(ncols=2)
+        if d in which:
+            full_path_d = join(join(dn, d), "m_eff")
+            # print(d, dn, full_path)
+            fns, ms = _get_m_fn(full_path_d)
+            fig, ax = plt.subplots()
         
-        for (x, y) in zip(fns, ms):
-            data = np.load(join(dn, "m_eff/", d, x))
-            τ = data["tau"]
-            m2_I = data["m2_I"]
-            m2_R = data["m2_R"]
+            for (x, y) in zip(fns, ms):
+                full_path_f = join(full_path_d, x)
+                print(full_path_f)
+                data = np.load(full_path_f)
+                a = data["a"]
+                N = np.log(a)
+                m2_I = data["m2_I"]
+                m2_R = data["m2_R"]
 
-            color = cmap(y/max(ms))
-            ax1.plot(τ, m2_R, c=color, label=rf"$m_\chi={y:.2f}m_\phi$")
-            ax1.plot(τ, m2_I, c=color, ls="--")
+                color = cmap(y/max(ms))
+                ax.plot(N, m2_R / a**2 / mᵩ**2, c=color, label=rf"$m_\chi={y:.2f}m_\phi$")
+                ax.plot(N, m2_I / a**2 / mᵩ**2, c=color, ls="--")
 
-            ax2.plot(τ, m2_R/a**2, c=color, label=rf"$m_\chi={y:.2f}m_\phi$")
-            ax2.plot(τ, m2_I/a**2, c=color, ls="--")
+            ax.set_xlabel(r"$N$")
+            ax.set_ylabel(r"$m^2_{\tilde{\chi}, \rm {eff}} / (a ^2 m_\phi^2 )$")
+            ax.set_yscale("log")
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
 
-        ax1.set_xlabel(r"$\tau$")
-        ax1.set_ylabel(r"$m^2_{\rm eff} / (m_\phi)^2$")
-        ax1.set_yscale("log")
-        ax2.set_xlabel(r"$\tau$")
-        ax2.set_ylabel(r"$m^2_{\rm eff} / (a m_\phi)^2$")
-        ax2.set_yscale("log")
+            ax.legend(loc="lower left")
 
-        ax1.legend()
-
-        plt.savefig(dn.replace("data", "figs") + f"m2_m3_2={m:.1f}.pdf", bbox_inches="tight")
-        plt.close()
+            plt.savefig(full_path_d.replace("data", "figs") + ".pdf", bbox_inches="tight")
+            plt.close()
 
 
 def cp_model_data(dn):
@@ -759,16 +820,16 @@ if __name__ == "__main__":
     # dn = "data/TMode-0.001-iso/"
     dn = "data/TMode-0.0035/"
     # dn = "data/TMode-0.001/"
-    _, _, _, a, _, a_e, H_e, _, H, mᵩ = read_ode(dn)
+    _, _, _, a, _, aₑ, Hₑ, _, H, mᵩ = read_ode(dn)
     # rho_p = 3 * H[-1]**2 * a[-1]**3
     #  print(a[50000])
     #  rho_p = a[50000]**3
     # cp_model_data(dn)
     # plot_background(dn)
-    plot_f_m3_2(dn, sparse=0.4)
-    plot_integrated_nosugra(dn)
-    # plot_integrated_comp(dn, Hₑ, mᵩ, add=True)
-    #  plot_m_eff(dn)
+    # plot_f_m3_2(dn, sparse=0.4)
+    # ms, ρ = plot_integrated_nosugra(dn, mᵩ, Hₑ)
+    # plot_integrated_comp(dn, aₑ, Hₑ, mᵩ, add=True, nosugra=(ms, ρ))
+    plot_m_eff(dn, a, mᵩ, which=["m3_2=0.00", "m3_2=0.10"])
     
     # SmallField
     # dn = "data/SmallField/"
